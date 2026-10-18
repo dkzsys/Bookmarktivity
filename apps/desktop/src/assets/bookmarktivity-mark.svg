@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Bookmarktivity</title>
+  <desc id="desc">A white bookmark with a forward arrow on a violet rounded square.</desc>
+  <defs>
+    <linearGradient id="tile" x1="56" y1="48" x2="456" y2="464" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#927CFF"/>
+      <stop offset="1" stop-color="#5264E8"/>
+    </linearGradient>
+  </defs>
+  <rect x="24" y="24" width="464" height="464" rx="132" fill="url(#tile)"/>
+  <path d="M163 133c0-17 14-31 31-31h124c17 0 31 14 31 31v253c0 12-14 19-24 12l-69-48-69 48c-10 7-24 0-24-12V133Z" fill="#fff"/>
+  <path d="m209 279 92-92m-56 0h56v56" fill="none" stroke="#6159E9" stroke-width="25" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

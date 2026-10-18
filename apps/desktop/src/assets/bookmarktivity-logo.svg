@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 200" role="img" aria-labelledby="title desc">
+  <title id="title">Bookmarktivity logo</title>
+  <desc id="desc">A violet bookmark and forward arrow beside the Bookmarktivity wordmark.</desc>
+  <defs>
+    <linearGradient id="tile" x1="18" y1="18" x2="178" y2="180" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#927CFF"/>
+      <stop offset="1" stop-color="#5264E8"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="184" height="184" rx="52" fill="url(#tile)"/>
+  <path d="M63 53c0-7 6-13 13-13h48c7 0 13 6 13 13v100c0 5-6 8-10 5l-27-19-27 19c-4 3-10 0-10-5V53Z" fill="#fff"/>
+  <path d="m81 111 37-37M96 74h22v22" fill="none" stroke="#6159E9" stroke-width="10" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="224" y="124" fill="#20243A" font-family="Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, Segoe UI, sans-serif" font-size="72" font-weight="800" letter-spacing="-4">Bookmarktivity</text>
+</svg>

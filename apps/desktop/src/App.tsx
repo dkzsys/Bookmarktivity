@@ -5,6 +5,7 @@ import {
 } from "@bookmarktivity/core";
 import { inTauri, native, type EdgeProfile, type Preferences } from "./native";
 import { benchmarkSample, sampleData, sampleProfiles } from "./sample";
+import brandMark from "./assets/bookmarktivity-mark.svg";
 
 const defaultPrefs: Preferences = { enabledProfileIds: [], edgeUserDataDir: null };
 const defaultOptions: SearchOptions = {
@@ -12,21 +13,26 @@ const defaultOptions: SearchOptions = {
   scopeId: null, scopeMode: "descendants", sort: "relevance"
 };
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-type ShortcutAction = "find" | "refine" | "results" | "copy";
+type ShortcutAction = "find" | "refine" | "results" | "copy" | "settings";
 const defaultBindings: Record<ShortcutAction, string> = {
   find: mac ? "Meta+F" : "Ctrl+F",
   refine: "Alt+F",
   results: "Alt+R",
-  copy: mac ? "Meta+C" : "Ctrl+C"
+  copy: mac ? "Meta+C" : "Ctrl+C",
+  settings: mac ? "Meta+," : "Ctrl+,"
 };
 const shortcutNames: Record<ShortcutAction, string> = {
-  find: "Global search", refine: "Search within results", results: "Navigate to results", copy: "Copy selected URL"
+  find: "Global search", refine: "Search within results", results: "Navigate to results", copy: "Copy selected URL", settings: "Profiles & settings"
 };
 const labelFor = (binding: string) => binding.replace("Meta", "⌘").replace("Alt", mac ? "⌥" : "Alt").replace("Shift", "⇧").replaceAll("+", " ");
 function chordFor(event: KeyboardEvent | React.KeyboardEvent): string | null {
   if (["Meta", "Control", "Alt", "Shift"].includes(event.key)) return null;
   const modifiers = [event.metaKey && "Meta", event.ctrlKey && "Ctrl", event.altKey && "Alt", event.shiftKey && "Shift"].filter(Boolean);
-  const key = event.key.length === 1 ? event.key.toUpperCase() : event.key;
+  // Option/Alt can turn letters into symbols (for example Option+R becomes ® on macOS).
+  const key = /^Key[A-Z]$/.test(event.code) ? event.code.slice(3)
+    : /^Digit[0-9]$/.test(event.code) ? event.code.slice(5)
+    : event.code === "Comma" ? ","
+    : event.key.length === 1 ? event.key.toUpperCase() : event.key;
   return [...modifiers, key].join("+");
 }
 type SearchEnvelope = { id: number; result: SearchResult };
@@ -96,6 +102,10 @@ function Highlight({ value, queries }: { value: string; queries: string[] }) {
   })}</>;
 }
 
+function Chevron() {
+  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m7 4 6 6-6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+}
+
 export default function App() {
   const [profiles, setProfiles] = useState<EdgeProfile[]>([]);
   const [prefs, setPrefs] = useState<Preferences>(defaultPrefs);
@@ -149,10 +159,10 @@ export default function App() {
   }, [allItems]);
   const profileMap = useMemo(() => new Map(profiles.map(profile => [profile.id, profile])), [profiles]);
   const result = useSearch(allItems, options);
-  const matchedFolderKey = result.matchedFolderIds.join("|");
   useEffect(() => {
-    if (matchedFolderKey) setCollapsedResults(new Set(result.matchedFolderIds));
-  }, [matchedFolderKey]);
+    const searching = Boolean(options.query.trim() || options.refine.trim());
+    setCollapsedResults(new Set(searching ? result.items.filter(item => item.kind === "folder").map(item => item.id) : []));
+  }, [result.items, options.query, options.refine]);
   const tree = useMemo(() => arrangeTree(result.items, collapsedResults), [result.items, collapsedResults]);
   const visible = tree.visible;
   const virtual = visible.length > 250;
@@ -245,7 +255,6 @@ export default function App() {
 
   const updateOptions = (patch: Partial<SearchOptions>) => {
     setOptions(previous => ({ ...previous, ...patch }));
-    setCollapsedResults(new Set());
   };
 
   const refresh = async (targets: EdgeProfile[], label: string) => {
@@ -386,6 +395,9 @@ export default function App() {
         if (selected) focusResult(selected.id); else resultsRef.current?.focus();
         return;
       }
+      if (chord === bindings.settings) {
+        event.preventDefault(); setSettingsOpen(true); return;
+      }
       if (event.key === "Escape") {
         event.preventDefault();
         if (settingsOpen) { setSettingsOpen(false); return; }
@@ -464,7 +476,7 @@ export default function App() {
               setCollapsedResults(new Set());
             }
           }}>
-          <span className={`branch ${children.length ? "" : "leaf"}`} data-branch aria-hidden="true">{open ? "▾" : "▸"}</span>
+          <span className={`branch ${open ? "open" : ""} ${children.length ? "" : "leaf"}`} data-branch aria-hidden="true"><Chevron /></span>
           <span>{folder.name}</span>
         </button>
         {open && children.map(child => renderFolder(child, level + 1))}
@@ -478,11 +490,11 @@ export default function App() {
 
   return <div className="frame">
     <aside className="sidebar" aria-label="Folder scope">
-      <div className="side-brand"><span className="brand-mark">▰</span> Bookmarktivity</div>
+      <div className="side-brand"><img className="brand-mark" src={brandMark} alt="" /> Bookmarktivity</div>
       <div className="side-kicker">Workspace</div>
       <button className={`scope-row ${!options.scopeId ? "active" : ""}`} onClick={() => updateOptions({ scopeId: null })}><span className="nav-icon">◫</span> All bookmarks <span className="count">{enabled.length}</span></button>
       <div className="side-line" />
-      <button className="section-head section-toggle" aria-expanded={foldersOpen} onClick={() => setFoldersOpen(!foldersOpen)}><span>Your Folders</span><span className="disclosure">▾</span></button>
+      <button className="section-head section-toggle" aria-expanded={foldersOpen} onClick={() => setFoldersOpen(!foldersOpen)}><span>Your Folders</span><span className={`disclosure ${foldersOpen ? "open" : ""}`}><Chevron /></span></button>
       {foldersOpen && <>
         <div className="folder-actions">
           <button onClick={() => setCollapsedNav(new Set(allItems.filter(item => item.kind === "folder").map(item => item.id)))}>Collapse all</button>
@@ -537,7 +549,7 @@ export default function App() {
                 data-result-id={item.id} style={virtual ? { position: "absolute", top: (firstVisible + offset) * rowHeight, width: "100%", height: 68, paddingLeft: 13 + (item.level - 1) * 19 } : { paddingLeft: 13 + (item.level - 1) * 19 }}
                 onClick={event => { setSelectedId(item.id); if ((event.target as HTMLElement).closest("[data-result-branch]") && isFolder && childCount) setResultCollapsed(item.id, expanded); focusResult(item.id); }}
                 onDoubleClick={() => { setSelectedId(item.id); void openItem(item); }}>
-                <span className={`branch ${childCount ? "" : "leaf"}`} data-result-branch>{expanded ? "▾" : "▸"}</span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={options.regex ? [options.refine] : [options.query, options.refine]} /></span><span className="item-sub"><Highlight value={sub} queries={options.regex ? [options.refine] : [options.query, options.refine]} /></span></span><span className="source">Edge · {item.source.profileName}</span>
+                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Chevron /></span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={options.regex ? [options.refine] : [options.query, options.refine]} /></span><span className="item-sub"><Highlight value={sub} queries={options.regex ? [options.refine] : [options.query, options.refine]} /></span></span><span className="source">Edge · {item.source.profileName}</span>
               </button>;
             })}
             </div>

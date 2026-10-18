@@ -48,6 +48,8 @@ These illustrate desired behavior, not final parser syntax:
 - Global search: `Command+F` on macOS and `Ctrl+F` on Windows and Linux returns to **All bookmarks** across enabled profiles, clears the search-within-results filter, and focuses the primary search field. It retains the primary query and its field/mode choices so the user can revise them.
 - Search within results: `Option+F` on macOS and `Alt+F` on Windows and Linux focuses the refinement field without changing the current global query or folder scope.
 - Navigate to results: `Option+R` on macOS and `Alt+R` on Windows and Linux focuses the selected visible result, or the empty-results region when there is no result. It does not alter the query, scope, or enabled profiles.
+- Profiles & settings: `Command+,` on macOS and `Ctrl+,` on Windows and Linux opens the settings dialog.
+- Folder rows in a new search result start collapsed, including when the query is a plain folder name. The user can expand them to inspect contents.
 - Pressing `Escape` twice in quick succession clears search queries, folder scope, field restrictions, regex mode, and result filtering; it restores the default sort and expanded result view. Enabled profile choices remain unchanged.
 - In **Your Folders**, Up/Down move through visible folders, Right expands a collapsed branch or moves to its first child, and Left collapses an expanded branch or moves to its parent. The section itself is a keyboard-operable disclosure.
 - In search results, Up/Down move through visible results. Right expands a selected folder and Left collapses it; when already expanded or collapsed, the respective arrow moves to its first visible child or parent where available. Tab and Shift+Tab move through interactive controls with visible focus.

@@ -7,7 +7,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 .frame{max-width:1700px;min-height:100vh;margin:auto;display:grid;grid-template-columns:238px minmax(0,1fr);background:#f8f9fc;box-shadow:0 15px 80px #10162a12}
 .sidebar{grid-row:1 / 5;background:radial-gradient(circle at -40px -20px,#263254 0,#171c31 46%,#14192b 100%);color:#aeb7d0;padding:28px 16px 22px;display:flex;flex-direction:column;min-height:100vh}
 .side-brand{display:flex;align-items:center;gap:10px;color:#fff;font-size:17px;font-weight:800;letter-spacing:-.045em;margin:2px 10px 40px}
-.brand-mark{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(145deg,#8f79ff,#526bf4);box-shadow:0 5px 13px #7868ef66;color:#fff;font-size:17px;transform:rotate(-6deg)}
+.brand-mark{width:30px;height:30px;flex:none;filter:drop-shadow(0 5px 6px #7868ef55)}
 .side-kicker{padding:0 12px 10px;color:#737d9b;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
 .scope-row,.tree-row{width:100%;min-height:39px;display:flex;align-items:center;gap:11px;border:0;border-radius:10px;background:transparent;color:#aeb7d0;text-align:left;padding:9px 12px;font-size:12px;font-weight:600}
 .scope-row:hover,.tree-row:hover{background:#ffffff12;color:#fff}
@@ -18,8 +18,9 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 .section-head{display:flex;align-items:center;justify-content:space-between;margin:0 12px 12px;color:#747e9e;text-transform:uppercase;font-weight:800;font-size:10px;letter-spacing:.13em}
 .section-toggle{width:calc(100% - 24px);padding:0;border:0;background:none;text-align:left;cursor:pointer}
 .section-toggle:hover{color:#c6c5ef}
-.section-toggle .disclosure{font-size:13px;color:#9c90f3;transition:transform .15s ease}
-.section-toggle[aria-expanded="false"] .disclosure{transform:rotate(-90deg)}
+.section-toggle .disclosure{display:grid;place-items:center;width:18px;height:18px;color:#b2a7ff}
+.disclosure svg{display:block;width:17px;height:17px;transition:transform .15s ease}
+.disclosure.open svg{transform:rotate(90deg)}
 .folder-actions{display:flex;gap:7px;margin:0 11px 10px}
 .folder-actions[hidden]{display:none}
 .folder-actions button{flex:1;padding:6px 5px;border:1px solid #ffffff1c;border-radius:7px;background:#ffffff0c;color:#aeb6d1;font-size:10px;font-weight:750}
@@ -30,8 +31,7 @@ button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-v
 .edge-icon{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:7px;background:linear-gradient(135deg,#14c6b6,#3970fa);color:#fff;font-size:12px;font-weight:800;box-shadow:0 3px 7px #080f2730}
 .tree-row{font-size:12px;color:#929db8;min-height:33px;padding-top:6px;padding-bottom:6px;font-weight:500}
 .tree-row .glyph{width:16px;text-align:center;color:#7985a2}
-.tree-row .branch{width:13px;text-align:center;color:#a29ac9;font-size:11px;transition:transform .15s ease}
-.tree-row[aria-expanded="false"] .branch{transform:rotate(-90deg)}
+.tree-row .branch{flex:none;display:grid;place-items:center;width:17px;height:17px;color:#b8aff0}
 .tree-row .branch.leaf{visibility:hidden}
 .scope-card{background:#ffffff0d;border:1px solid #ffffff15;border-radius:12px;margin:auto 4px 0;padding:14px}
 .scope-card label{display:block;color:#929ebc;font-size:10px;text-transform:uppercase;font-weight:800;letter-spacing:.08em;margin-bottom:10px}
@@ -109,9 +109,11 @@ h1{margin:0;font-size:clamp(30px,2.8vw,41px);line-height:1.1;letter-spacing:-.06
 .result{display:flex;align-items:center;gap:13px;min-height:68px;width:100%;padding:11px 13px;text-align:left;border:1px solid #e9eaf1;border-radius:12px;background:#fff;color:var(--ink);box-shadow:0 2px 5px #2f315809;transition:.14s ease}
 .result:hover{border-color:#c5bdfd;transform:translateY(-1px);box-shadow:0 7px 14px #4b418315}
 .result.selected{border-color:#b1a5fb;background:#f9f8ff;box-shadow:0 0 0 2px #e9e4ff,0 4px 10px #5849d012}
-.result .branch{flex:none;width:13px;text-align:center;color:#9a8ee4;font-size:12px;transition:transform .15s ease}
-.result[aria-expanded="false"] .branch{transform:rotate(-90deg)}
+.result .branch{flex:none;display:grid;place-items:center;width:19px;height:19px;color:#8879db}
 .result .branch.leaf{visibility:hidden}
+.branch svg{display:block;width:16px;height:16px;transition:transform .15s ease}
+.result .branch svg{width:18px;height:18px}
+.branch.open svg{transform:rotate(90deg)}
 .result:focus-visible,.tree-row:focus-visible{outline:2px solid #aa9dff;outline-offset:1px}
 .item-icon{flex:none;width:39px;height:39px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#eeebff,#e7e9ff);color:#7567dd;font-size:18px}
 .item-icon.folder{background:linear-gradient(145deg,#fff4d9,#ffe9ca);color:#cf954a}
