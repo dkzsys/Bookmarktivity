@@ -1,0 +1,23 @@
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local configuration and secrets
+.env
+.env.*
+!.env.example
+
+# Build outputs and dependencies (refine after runtime selection)
+node_modules/
+dist/
+build/
+target/
+coverage/
+
+# Real browser data must not be committed
+User Data/
+Bookmarks
+Bookmarks.bak
+Local State
