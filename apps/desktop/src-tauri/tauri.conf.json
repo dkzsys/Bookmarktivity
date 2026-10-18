@@ -1,0 +1,19 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Bookmarktivity",
+  "version": "0.1.0",
+  "identifier": "app.bookmarktivity.desktop",
+  "build": {
+    "beforeDevCommand": "npm run dev -w @bookmarktivity/desktop",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build -w @bookmarktivity/desktop",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {"title": "Bookmarktivity", "width": 1400, "height": 900, "minWidth": 900, "minHeight": 600}
+    ],
+    "security": {"csp": "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'"}
+  },
+  "bundle": {"active": true, "targets": "all"}
+}

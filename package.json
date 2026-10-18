@@ -1,0 +1,12 @@
+{
+  "name": "bookmarktivity",
+  "private": true,
+  "type": "module",
+  "workspaces": ["apps/desktop", "packages/core"],
+  "scripts": {
+    "dev": "npm run dev -w @bookmarktivity/desktop",
+    "build": "npm run build -w @bookmarktivity/desktop",
+    "test": "npm run test -w @bookmarktivity/core",
+    "typecheck": "npm run typecheck -w @bookmarktivity/desktop"
+  }
+}

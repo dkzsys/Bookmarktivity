@@ -1,6 +1,6 @@
 # Coding agent guidance
 
-Bookmarktivity is a standalone, cross-platform desktop bookmark app. Read `PRODUCT.md` for confirmed scope and open product decisions. Use `docs/architecture.md` when changing system boundaries or browser integrations.
+Bookmarktivity is a standalone, cross-platform desktop bookmark app. Read `PRODUCT.md` for confirmed scope and open product decisions, `TECHNOLOGY.MD` for the selected stack and its boundaries, and `docs/architecture.md` when changing system boundaries or browser integrations.
 
 ## Project rules
 
@@ -14,6 +14,5 @@ Bookmarktivity is a standalone, cross-platform desktop bookmark app. Read `PRODU
 
 ## Working in this repository
 
-- The desktop runtime and build tooling are undecided. Do not invent or document build and test commands as working until they exist.
-- Once code is added, run the relevant checks for the changed area and report what was run.
+- The Tauri 2, React, TypeScript, Vite, and Rust stack is scaffolded. Use the working commands in README.md and report the checks run for the changed area.
 - Keep instructions concise and scoped. Add nested `AGENTS.md` files only when a directory needs distinct, durable rules.

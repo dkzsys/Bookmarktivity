@@ -1,23 +1,22 @@
 # Architecture outline
 
-This is an initial map, not a description of implemented code. No runtime has been selected.
+This describes the first implemented architecture. The selected technology direction is in [TECHNOLOGY.MD](../TECHNOLOGY.MD) and [decision 0006](decisions/0006-desktop-technology-stack.md).
 
 ## Boundaries
 
 ```text
-Desktop UI
-    | profile selection, search, review, actions
-    v
-Core bookmark model and operations
-    | browser-neutral records with source identity
-    v
-Browser adapter interface
+React/TypeScript UI (Tauri webview)
+    | queries, focus, profile selection, review
+    +--> TypeScript core and in-memory search worker
+    |        browser-neutral records with source identity
     |
-    +-- Microsoft Edge adapter (first)
-    +-- Other browser adapters (future)
+    +--> Narrow Tauri commands (Rust desktop host)
+             |
+             +-- Rust Edge adapter (first)
+             +-- Other browser adapters (future)
 ```
 
-`apps/desktop/` owns the user experience, platform packaging, Settings, and platform-specific URL opening and clipboard integration. `packages/core/` owns browser-neutral models, query interpretation, filtering, sorting, and productivity behavior. `packages/browser-edge/` owns Edge-specific profile discovery and bookmark access.
+`apps/desktop/` owns the React and TypeScript experience, Tauri host, platform packaging, Settings, and platform-specific URL opening and clipboard integration. `packages/core/` owns browser-neutral TypeScript models, query interpretation, filtering, sorting, and productivity behavior. `packages/browser-edge/` owns Rust Edge-specific profile discovery and read-only bookmark access. The host passes browser-neutral records across the Rust-to-TypeScript boundary with browser and profile identity intact. Search work runs outside the UI thread.
 
 ## Profile model
 
@@ -33,8 +32,8 @@ Profile discovery must account for operating-system differences and customized E
 
 ## First integration boundary
 
-The first technical slice should discover Edge profiles, let the user choose among them, and read bookmark data into a browser-neutral representation. A manual re-read requests fresh data from enabled profiles through the browser adapter, then reapplies core search and scope without changing provenance. Surface read failures by profile. Start with read-only access while validating the data format and refresh behavior. Writing changes back to Edge requires a separate decision covering concurrency, backup, recovery, and compatibility.
+The first technical slice discovers Edge profiles, lets the user choose among them, and reads bookmark data into a browser-neutral representation. A manual re-read requests fresh data from enabled profiles through the browser adapter, then reapplies core search and scope without changing provenance. Read failures appear by profile. The browser preview uses synthetic records only. Writing changes back to Edge requires a separate decision covering concurrency, backup, recovery, and compatibility.
 
 ## Verification approach
 
-Use synthetic fixtures for parser and model tests. Once an app runtime is chosen, add platform-specific discovery tests and end-to-end tests of profile selection and provenance. Do not depend on a developer's real Edge profile in automated tests.
+Use synthetic fixtures for parser and model tests. Once the app is scaffolded, add platform-specific discovery tests and end-to-end tests of profile selection and provenance. Test the release platforms' webviews and keyboard behavior. Do not depend on a developer's real Edge profile in automated tests.
