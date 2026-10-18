@@ -1,0 +1,623 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarktivity — workspace wireframe</title>
+  <style>
+:root{font-family:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:#20243a;background:#eceef5;font-size:14px;--ink:#20243a;--muted:#7d8497;--line:#e7e9f1;--violet:#6656ed;--violet-soft:#f0edff}
+*{box-sizing:border-box}
+body{margin:0;min-width:820px}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible,[tabindex]:focus-visible{outline:3px solid #a99cff;outline-offset:2px}
+.frame{max-width:1700px;min-height:100vh;margin:auto;display:grid;grid-template-columns:238px minmax(0,1fr);background:#f8f9fc;box-shadow:0 15px 80px #10162a12}
+.sidebar{grid-row:1 / 5;background:radial-gradient(circle at -40px -20px,#263254 0,#171c31 46%,#14192b 100%);color:#aeb7d0;padding:28px 16px 22px;display:flex;flex-direction:column;min-height:100vh}
+.side-brand{display:flex;align-items:center;gap:10px;color:#fff;font-size:17px;font-weight:800;letter-spacing:-.045em;margin:2px 10px 40px}
+.brand-mark{width:30px;height:30px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(145deg,#8f79ff,#526bf4);box-shadow:0 5px 13px #7868ef66;color:#fff;font-size:17px;transform:rotate(-6deg)}
+.side-kicker{padding:0 12px 10px;color:#737d9b;font-size:10px;font-weight:800;letter-spacing:.15em;text-transform:uppercase}
+.scope-row,.tree-row{width:100%;min-height:39px;display:flex;align-items:center;gap:11px;border:0;border-radius:10px;background:transparent;color:#aeb7d0;text-align:left;padding:9px 12px;font-size:12px;font-weight:600}
+.scope-row:hover,.tree-row:hover{background:#ffffff12;color:#fff}
+.scope-row.active,.tree-row.active{background:#7365fa27;color:#eae6ff;box-shadow:inset 2px 0 #a094ff}
+.scope-row .count{margin-left:auto;color:#8e96b2;font-size:11px}
+.nav-icon{font-size:16px;width:17px;text-align:center}
+.side-line{height:1px;background:#ffffff16;margin:21px 12px}
+.section-head{display:flex;align-items:center;justify-content:space-between;margin:0 12px 12px;color:#747e9e;text-transform:uppercase;font-weight:800;font-size:10px;letter-spacing:.13em}
+.section-toggle{width:calc(100% - 24px);padding:0;border:0;background:none;text-align:left;cursor:pointer}
+.section-toggle:hover{color:#c6c5ef}
+.section-toggle .disclosure{font-size:13px;color:#9c90f3;transition:transform .15s ease}
+.section-toggle[aria-expanded="false"] .disclosure{transform:rotate(-90deg)}
+.folder-actions{display:flex;gap:7px;margin:0 11px 10px}
+.folder-actions[hidden]{display:none}
+.folder-actions button{flex:1;padding:6px 5px;border:1px solid #ffffff1c;border-radius:7px;background:#ffffff0c;color:#aeb6d1;font-size:10px;font-weight:750}
+.folder-actions button:hover{background:#ffffff1b;color:#fff}
+.profile-group{margin:18px 0 5px}
+.profile-label{display:flex;align-items:center;gap:8px;padding:0 12px 6px;font-size:11px;font-weight:700;color:#d7d9ec}
+.profile-pill{margin-left:auto;color:#737e9b;font-size:11px}
+.edge-icon{display:inline-grid;place-items:center;width:21px;height:21px;border-radius:7px;background:linear-gradient(135deg,#14c6b6,#3970fa);color:#fff;font-size:12px;font-weight:800;box-shadow:0 3px 7px #080f2730}
+.tree-row{font-size:12px;color:#929db8;min-height:33px;padding-top:6px;padding-bottom:6px;font-weight:500}
+.tree-row .glyph{width:16px;text-align:center;color:#7985a2}
+.tree-row .branch{width:13px;text-align:center;color:#a29ac9;font-size:11px;transition:transform .15s ease}
+.tree-row[aria-expanded="false"] .branch{transform:rotate(-90deg)}
+.tree-row .branch.leaf{visibility:hidden}
+.scope-card{background:#ffffff0d;border:1px solid #ffffff15;border-radius:12px;margin:auto 4px 0;padding:14px}
+.scope-card label{display:block;color:#929ebc;font-size:10px;text-transform:uppercase;font-weight:800;letter-spacing:.08em;margin-bottom:10px}
+.scope-card select{width:100%;border:1px solid #ffffff20;border-radius:8px;background:#232b43;color:#e4e7f2;padding:8px;font-size:11px}
+.workspace{min-width:0;display:flex;flex-direction:column}
+.titlebar{height:65px;display:flex;align-items:center;justify-content:space-between;padding:0 30px;border-bottom:1px solid var(--line);background:#fff}
+.breadcrumb{display:flex;gap:10px;align-items:center;color:#a1a8b9;font-size:12px}
+.breadcrumb strong{color:#50596f;font-weight:700}
+.top-actions{display:flex;align-items:center;gap:18px}
+.top-status{display:flex;align-items:center;gap:7px;color:#69748d;font-size:11px;font-weight:650}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#63c6a7;box-shadow:0 0 0 3px #e1f6ee}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;white-space:nowrap;border:1px solid #e0e3ee;border-radius:10px;background:#fff;color:#545e76;padding:10px 13px;font-size:12px;font-weight:750;transition:.15s ease}
+.btn:hover{transform:translateY(-1px);border-color:#b8baf6;box-shadow:0 5px 12px #35388612}
+.btn-primary{color:#fff;border-color:#6554e9;background:linear-gradient(135deg,#7665ff,#5849df);box-shadow:0 5px 14px #695bef36}
+.btn-primary:hover{color:#fff;background:linear-gradient(135deg,#816fff,#5849df)}
+.concept{display:flex;align-items:center;gap:9px;padding:8px 30px;background:#f3f0ff;color:#8175a4;font-size:11px;border-bottom:1px solid #e9e3fb}
+.concept strong{border-radius:100px;color:#5f50c4;background:#e1dcff;padding:3px 8px;text-transform:uppercase;letter-spacing:.07em;font-size:9px}
+.content{display:grid;grid-template-columns:minmax(440px,1fr) 302px;flex:1;min-height:0}
+.main{padding:37px clamp(24px,3.5vw,55px) 42px;min-width:0}
+.top{position:relative;margin-bottom:31px}
+.eyebrow{display:block;margin-bottom:10px;color:#7161dc;text-transform:uppercase;letter-spacing:.16em;font-weight:850;font-size:10px}
+h1{margin:0;font-size:clamp(30px,2.8vw,41px);line-height:1.1;letter-spacing:-.06em;font-weight:800;color:#22243a}
+.subtitle{margin:12px 0 26px;color:#858ba0;font-size:13px;line-height:1.5}
+.search-panel{padding:12px;border:1px solid #e8e6f3;border-radius:17px;background:#fff;box-shadow:0 13px 35px #2527480b,0 2px 5px #25274808}
+.search-row{display:flex;gap:9px}
+.search-wrap{position:relative;flex:1;min-width:0}
+.search-icon{position:absolute;left:16px;top:50%;transform:translateY(-50%);color:#938abb;font-size:22px;line-height:1}
+.search-wrap input{width:100%;height:47px;padding:0 78px 0 45px;border:0;border-radius:10px;background:#f6f5fb;color:#30334a;font-size:13px;outline:0}
+.search-wrap input:focus{box-shadow:0 0 0 2px #a497ff}
+.search-wrap input::placeholder{color:#aaa8b9}
+.key{display:inline-block;border:1px solid #e4e4ed;border-bottom-width:2px;border-radius:5px;padding:2px 5px;background:#fff;color:#8e94a4;font:10px ui-monospace,SFMono-Regular,Menlo,monospace;white-space:nowrap}
+.search-wrap .key{position:absolute;top:13px;right:12px}
+.search-row .btn{border-radius:10px;padding:0 17px;font-size:12px}
+.search-options{display:flex;align-items:center;gap:10px 17px;flex-wrap:wrap;padding:14px 3px 3px;color:#737b91;font-size:11px}
+.option-label{font-size:10px;font-weight:800;color:#a2a6b7;letter-spacing:.06em;text-transform:uppercase}
+.check{display:inline-flex;align-items:center;gap:6px;cursor:pointer;white-space:nowrap}
+.check input{accent-color:#6e5df4;width:14px;height:14px;margin:0}
+.divider{height:18px;width:1px;background:#e6e7ef}
+.syntax{margin-left:auto}
+.inline-button{border:0;background:transparent;color:#6d5cdd;font-weight:750;font-size:11px;padding:2px}
+.inline-button:hover{text-decoration:underline}
+.syntax-menu{display:none;position:absolute;top:100%;right:0;z-index:8;width:330px;padding:18px;border:1px solid #e5e4ef;border-radius:13px;background:#fff;box-shadow:0 16px 35px #20243b25;font-size:12px;line-height:1.6;color:#657086}
+.syntax-menu.show{display:block}
+.syntax-menu strong{color:#30364d}
+.syntax-menu code{background:#f1efff;color:#6555d4;border-radius:4px;padding:2px 4px}
+.result-head{display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+.result-head h2{margin:0;font-size:19px;letter-spacing:-.035em;font-weight:800}
+.result-head .caption{margin-top:5px;color:#9ba2b2;font-size:11px}
+.sort-wrap{display:flex;gap:9px;align-items:center;color:#989eae;font-size:11px;font-weight:650}
+.sort-wrap select{border:1px solid #e2e4ed;background:#fff;color:#535c73;border-radius:8px;padding:8px 10px;font-size:11px;font-weight:700}
+.result-tools{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.result-tools .btn{padding:8px 11px}
+.reread-control{position:relative;display:flex;align-items:center}
+.reread-control .btn:first-child{border-top-right-radius:0;border-bottom-right-radius:0}
+.reread-control .btn:last-of-type{border-left:0;border-top-left-radius:0;border-bottom-left-radius:0;padding:8px 9px}
+.reread-menu{position:absolute;right:0;top:calc(100% + 7px);z-index:7;width:253px;padding:8px;border:1px solid #e5e4ee;border-radius:12px;background:#fff;box-shadow:0 14px 36px #20243b24}
+.reread-menu[hidden]{display:none}
+.reread-menu-label{padding:9px 9px 5px;color:#a1a7b7;font-size:9px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+.reread-menu button{display:flex;align-items:center;justify-content:space-between;gap:10px;width:100%;border:0;border-radius:8px;background:transparent;padding:9px;text-align:left;color:#414a62;font-size:11px;font-weight:700}
+.reread-menu button:hover:not(:disabled){background:#f2efff;color:#6252d4}
+.reread-menu button:disabled{color:#aab0c0;cursor:not-allowed}
+.reread-menu small{color:#9aa2b3;font-size:10px;font-weight:600;white-space:nowrap}
+.reread-menu .menu-rule{height:1px;margin:5px 6px;background:#ececf3}
+.source-status{margin:-6px 0 14px;color:#9aa2b4;font-size:10px;line-height:1.45}
+.active-bar{display:flex;gap:7px;align-items:center;flex-wrap:wrap;margin-bottom:15px;min-height:26px}
+.chip{border:1px solid #e7e8f0;border-radius:100px;background:#fff;color:#7d8599;padding:5px 9px;font-size:10px;font-weight:650;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip.blue{border-color:#e0daff;background:#f0edff;color:#6958dc}
+.refine{height:39px;margin-bottom:15px;display:flex;align-items:center;gap:10px;padding:0 13px;border:1px solid #e5e7f0;border-radius:10px;background:#fff;color:#a6aabe;box-shadow:0 2px 4px #25274805}
+.refine input{width:100%;border:0;outline:0;color:#30364b;font-size:11px;background:transparent}
+.refine input::placeholder{color:#aaaebb}
+.refine .key{flex:none;background:#f7f7fb}
+.result-list{display:flex;flex-direction:column;gap:8px}
+.result-list:focus-visible{outline:2px solid #aa9dff;outline-offset:4px;border-radius:10px}
+.list-head{display:flex;justify-content:space-between;padding:0 6px 3px;color:#a6adbe;text-transform:uppercase;letter-spacing:.1em;font-size:9px;font-weight:850}
+.result{display:flex;align-items:center;gap:13px;min-height:68px;width:100%;padding:11px 13px;text-align:left;border:1px solid #e9eaf1;border-radius:12px;background:#fff;color:var(--ink);box-shadow:0 2px 5px #2f315809;transition:.14s ease}
+.result:hover{border-color:#c5bdfd;transform:translateY(-1px);box-shadow:0 7px 14px #4b418315}
+.result.selected{border-color:#b1a5fb;background:#f9f8ff;box-shadow:0 0 0 2px #e9e4ff,0 4px 10px #5849d012}
+.result .branch{flex:none;width:13px;text-align:center;color:#9a8ee4;font-size:12px;transition:transform .15s ease}
+.result[aria-expanded="false"] .branch{transform:rotate(-90deg)}
+.result .branch.leaf{visibility:hidden}
+.result:focus-visible,.tree-row:focus-visible{outline:2px solid #aa9dff;outline-offset:1px}
+.item-icon{flex:none;width:39px;height:39px;border-radius:11px;display:grid;place-items:center;background:linear-gradient(145deg,#eeebff,#e7e9ff);color:#7567dd;font-size:18px}
+.item-icon.folder{background:linear-gradient(145deg,#fff4d9,#ffe9ca);color:#cf954a}
+.item-body{min-width:0;flex:1}
+.item-title{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:750;font-size:12px;color:#33384f}
+.item-sub{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:#9aa2b2;margin-top:5px;font-size:10px}
+.source{flex:none;max-width:116px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;border-radius:100px;padding:6px 9px;background:#f2f5fa;color:#727d94;font-size:10px;font-weight:750}
+mark{background:#ffe8a7;color:inherit;border-radius:3px;padding:0 1px}
+.empty{background:#fff;border:1px dashed #d9daeb;border-radius:14px;text-align:center;padding:40px 15px;color:#929ab0;font-size:12px}
+.empty strong{display:block;color:#444b65;margin-bottom:6px;font-size:13px}
+.detail{min-width:0;padding:37px 24px;background:#fff;border-left:1px solid #ebecf2}
+.detail-head{margin:3px 0 26px;color:#a2a8b8;font-size:10px;font-weight:850;text-transform:uppercase;letter-spacing:.14em}
+.detail-icon{display:grid;place-items:center;width:52px;height:52px;margin-bottom:18px;border-radius:15px;background:linear-gradient(145deg,#eae6ff,#e3e7ff);color:#6c5cde;font-size:24px}
+.detail h2{margin:0 0 9px;font-size:19px;line-height:1.25;letter-spacing:-.04em;overflow-wrap:anywhere}
+.detail-url{display:block;margin-bottom:26px;color:#6d5cdb;font-size:11px;line-height:1.6;overflow-wrap:anywhere}
+.metadata{border-top:1px solid #eceef3;padding-top:22px;display:grid;gap:21px}
+.meta-label{display:block;margin-bottom:8px;color:#a5acbb;font-size:9px;text-transform:uppercase;letter-spacing:.11em;font-weight:850}
+.meta-value{font-size:11px;line-height:1.5;color:#59637b;overflow-wrap:anywhere}
+.path{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+.path span{border-radius:6px;background:#f4f5f9;padding:5px 7px;color:#69738a;font-size:10px}
+.detail-actions{display:grid;gap:9px;margin-top:29px}
+.detail-actions .btn{width:100%}
+.read-only{margin-top:28px;padding:13px;border-radius:10px;background:#f8f8fb;color:#9ca4b4;font-size:10px;line-height:1.6}
+.footer{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 30px;height:39px;border-top:1px solid var(--line);background:#fff;color:#a1a8ba;font-size:10px}
+.footer .shortcuts{display:flex;align-items:center;gap:14px;white-space:nowrap}
+.footer .key{font-size:9px;padding:1px 4px;margin-right:2px}
+.modal-backdrop{display:none;position:fixed;inset:0;z-index:10;align-items:center;justify-content:center;padding:25px;background:#11172bb3;backdrop-filter:blur(5px)}
+.modal-backdrop.show{display:flex}
+.modal{width:min(560px,100%);max-height:90vh;overflow:auto;padding:27px;border:1px solid #e6e3f2;border-radius:20px;background:#fff;box-shadow:0 30px 90px #0e122c66}
+.modal-top{display:flex;align-items:flex-start;justify-content:space-between;gap:20px}
+.modal h2{margin:0 0 7px;font-size:22px;letter-spacing:-.04em}
+.modal p{margin:0;color:#8a91a5;font-size:12px;line-height:1.5}
+.close{flex:none;border:0;border-radius:8px;background:#f4f3f8;color:#7c8195;width:29px;height:29px;font-size:19px}
+.settings-section{margin-top:23px;padding-top:20px;border-top:1px solid #ececf4}
+.settings-section h3{margin:0 0 13px;color:#848a9b;font-size:10px;font-weight:850;letter-spacing:.1em;text-transform:uppercase}
+.profile-setting{display:flex;align-items:center;justify-content:space-between;gap:15px;padding:12px 0;border-bottom:1px solid #f0f1f5}
+.profile-setting:last-child{border-bottom:0}
+.profile-setting strong{display:block;font-size:12px}
+.profile-setting small{display:block;margin-top:5px;color:#9ea5b4}
+.profile-setting input{width:17px;height:17px;accent-color:#6d5df1}
+.shortcut-line{display:flex;justify-content:space-between;padding:7px 0;color:#657089;font-size:11px}
+.settings-note{margin-top:15px!important;padding:12px;border-radius:9px;background:#f7f6fb}
+.toast{position:fixed;left:50%;bottom:38px;z-index:20;display:none;transform:translateX(-50%);padding:10px 14px;border-radius:9px;background:#292444;color:#fff;box-shadow:0 9px 25px #22213b55;font-size:11px}
+.toast.show{display:block}
+@media(max-width:1250px){.content{grid-template-columns:minmax(390px,1fr) 265px}.main{padding:32px 25px}.detail{padding:33px 18px}.sidebar{padding-left:11px;padding-right:11px}}
+@media(max-width:1050px){.frame{grid-template-columns:202px minmax(0,1fr)}.content{display:block}.detail{border-top:1px solid #e8eaf1;border-left:0;display:grid;grid-template-columns:1fr 1.7fr;gap:0 25px}.detail-head{grid-column:1/-1;margin-bottom:15px}.read-only{grid-column:1/-1}.sidebar{min-height:100vh}.main{padding:28px}.footer{height:auto;min-height:42px;flex-wrap:wrap;padding:10px 24px}}
+  </style>
+</head>
+<body>
+  <div class="frame">
+    <aside class="sidebar" aria-label="Folder scope">
+      <div class="side-brand"><span class="brand-mark">▰</span> Bookmarktivity</div>
+      <div class="side-kicker">Workspace</div>
+      <button class="scope-row active" id="allScope" type="button"><span class="nav-icon">◫</span> All bookmarks <span class="count" id="profileCount"></span></button>
+      <div class="side-line"></div>
+      <button class="section-head section-toggle" id="foldersToggle" type="button" aria-expanded="true" aria-controls="folderTree"><span>Your Folders</span><span class="disclosure" aria-hidden="true">▾</span></button>
+      <div class="folder-actions" id="folderActions"><button id="collapseAllFolders" type="button">Collapse all</button><button id="expandAllFolders" type="button">Expand all</button></div>
+      <div id="folderTree"></div>
+      <div class="scope-card"><label for="scopeMode">Search selected folder</label><select id="scopeMode"><option value="descendants">Including descendants</option><option value="direct">Direct contents only</option></select></div>
+    </aside>
+    <div class="workspace">
+      <div class="titlebar"><div class="breadcrumb"><span>Workspace</span><span>›</span><strong id="breadcrumbCurrent">All bookmarks</strong></div><div class="top-actions"><span class="top-status"><span class="status-dot"></span> Local preview</span><button class="btn" id="settingsButton" type="button">⚙ &nbsp;Profiles & settings</button></div></div>
+      <div class="concept"><strong>Preview</strong> Synthetic sample content · Interaction concept for review · No browser data is accessed</div>
+      <div class="content">
+        <main class="main">
+          <header class="top">
+            <span class="eyebrow">Your knowledge, one place</span>
+            <h1>Find what matters, faster.</h1>
+            <p class="subtitle">Explore bookmarks across your chosen profiles, with every source clearly in view.</p>
+            <div class="search-panel">
+              <div class="search-row"><div class="search-wrap"><span class="search-icon" aria-hidden="true">⌕</span><input id="query" type="search" aria-label="Search bookmarks" placeholder='Search by name, folder or URL…'><span class="key" id="findShortcut">⌘ F</span></div><button class="btn btn-primary" id="searchButton" type="button">Search ↵</button></div>
+              <div class="search-options"><span class="option-label">Search in</span><label class="check"><input type="checkbox" class="field" value="name" checked> Name</label><label class="check"><input type="checkbox" class="field" value="url" checked> URL</label><label class="check"><input type="checkbox" class="field" value="folder" checked> Folder name</label><span class="divider"></span><label class="check"><input type="checkbox" id="regex"> Regex</label><span class="syntax"><button class="inline-button" id="syntaxButton" type="button" aria-expanded="false">Syntax guide ↗</button></span></div>
+            </div>
+            <div class="syntax-menu" id="syntaxMenu"><strong>Query ideas</strong><p><code>name:"Project plan"</code> matches a phrase in a name.</p><p><code>url:docs.example.com AND name:guide</code> combines fields.</p><p><code>OR</code> broadens a query. <code>folder:</code> matches only a folder's name or a bookmark's immediate containing folder name. The folder list sets scope.</p><p>Regex mode treats the full query as an expression across the selected fields.</p></div>
+          </header>
+          <div class="result-head"><div><h2 id="resultTitle">All bookmarks</h2><div class="caption" id="resultCaption">Folders appear before bookmarks</div></div><div class="result-tools"><div class="reread-control" id="rereadControl"><button class="btn" id="rereadButton" type="button">↻ &nbsp;Re-read all sources</button><button class="btn" id="rereadMenuButton" type="button" aria-label="Choose a source or profile to re-read" aria-expanded="false" aria-controls="rereadMenu">▾</button><div class="reread-menu" id="rereadMenu" hidden></div></div><div class="sort-wrap"><label for="sort">Sort by</label><select id="sort"><option value="relevance">Relevance</option><option value="alpha">Alphabetical</option></select></div></div></div>
+          <div class="source-status" id="sourceStatus" role="status">Sample data only. Re-read all or choose a source or profile; no browser files are accessed.</div>
+          <div class="active-bar" id="activeBar"></div>
+          <label class="refine"><span>⌕</span><input id="refine" type="search" aria-label="Search within results" placeholder="Search within these results…"><span class="key" id="refineShortcut">⌥ F</span></label>
+          <div class="result-list" id="results" role="tree" aria-label="Search results" tabindex="0"></div>
+        </main>
+        <aside class="detail" aria-label="Selected item details" id="detail"></aside>
+      </div>
+      <footer class="footer"><span>Read-only concept · Enabled profiles only</span><div class="shortcuts"><span><span class="key" id="resultsShortcut">⌥ R</span> Results</span><span><span class="key">← →</span> Folders</span><span><span class="key">Esc Esc</span> Reset</span><span><span class="key" id="copyShortcut">⌘ C</span> Copy URL</span></div></footer>
+    </div>
+  </div>
+  <div class="modal-backdrop" id="settingsModal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle"><div class="modal"><div class="modal-top"><div><h2 id="settingsTitle">Profiles & settings</h2><p>Choose the local browser profiles included in this workspace. Changes here only affect what Bookmarktivity displays.</p></div><button class="close" id="closeSettings" type="button" aria-label="Close settings">×</button></div><div class="settings-section"><h3>Microsoft Edge · Local profiles</h3><div id="profileSettings"></div><p class="settings-note">Profile names and bookmarks in this wireframe are synthetic. Profile discovery and browser access are not connected.</p></div><div class="settings-section"><h3>Keyboard shortcuts · Proposed defaults</h3><div class="shortcut-line"><span>Global search · All bookmarks</span><span class="key" id="settingsFind">⌘ F</span></div><div class="shortcut-line"><span>Search within these results</span><span class="key" id="settingsRefine">⌥ F</span></div><div class="shortcut-line"><span>Navigate to results</span><span class="key" id="settingsResults">⌥ R</span></div><div class="shortcut-line"><span>Reset search and filters</span><span class="key">Esc Esc</span></div><div class="shortcut-line"><span>Expand or collapse folder</span><span class="key">← →</span></div><div class="shortcut-line"><span>Copy selected URL</span><span class="key" id="settingsCopy">⌘ C</span></div><div class="shortcut-line"><span>Open selected bookmark</span><span class="key">Enter</span></div><p class="settings-note">Shortcut customization and conflict detection are planned product behavior; this wireframe shows the default workflow.</p></div></div></div>
+  <div class="toast" id="toast" role="status"></div>
+  <script>
+    // Synthetic records only. This file is a reviewable UI concept, not an Edge integration.
+    const sources = [{ id:'edge', name:'Microsoft Edge' }];
+    const profiles = [
+      { id: 'personal', source:'edge', name: 'Personal', enabled: true },
+      { id: 'work', source:'edge', name: 'Work', enabled: true },
+      { id: 'archive', source:'edge', name: 'Archive', enabled: false }
+    ];
+    const folders = [
+      { id:'p-reading', profile:'personal', name:'Reading', parent:null },
+      { id:'p-design', profile:'personal', name:'Design', parent:'p-reading' },
+      { id:'p-travel', profile:'personal', name:'Travel', parent:null },
+      { id:'w-projects', profile:'work', name:'Projects', parent:null },
+      { id:'w-atlas', profile:'work', name:'Atlas', parent:'w-projects' },
+      { id:'w-research', profile:'work', name:'Research', parent:null },
+      { id:'w-methods', profile:'work', name:'Methods', parent:'w-research' },
+      { id:'a-ideas', profile:'archive', name:'Ideas', parent:null }
+    ];
+    const bookmarks = [
+      { id:'b1', profile:'work', folder:'w-atlas', name:'Project plan — Atlas', url:'https://docs.example.com/atlas/project-plan' },
+      { id:'b2', profile:'work', folder:'w-atlas', name:'Atlas design guide', url:'https://docs.example.com/atlas/design-guide' },
+      { id:'b3', profile:'work', folder:'w-research', name:'Browser bookmark API notes', url:'https://developer.example.com/bookmark-api' },
+      { id:'b4', profile:'work', folder:'w-research', name:'Quarterly research board', url:'https://boards.example.com/research/2026' },
+      { id:'b5', profile:'personal', folder:'p-design', name:'Color and type inspiration', url:'https://design.example.com/inspiration' },
+      { id:'b6', profile:'personal', folder:'p-reading', name:'Keyboard navigation patterns', url:'https://ux.example.com/keyboard-guide' },
+      { id:'b7', profile:'personal', folder:'p-travel', name:'Weekend walking guide', url:'https://travel.example.com/walking-guide' },
+      { id:'b8', profile:'personal', folder:'p-reading', name:'Project plan template', url:'https://notes.example.com/project-plan-template' },
+      { id:'b9', profile:'archive', folder:'a-ideas', name:'Old project sketch', url:'https://archive.example.com/sketch' },
+      { id:'b10', profile:'work', folder:'w-methods', name:'Search index paper', url:'https://papers.example.com/search-index' }
+    ];
+    const $ = id => document.getElementById(id);
+    let scope = null, selectedId = null, visibleItems = [], lastFocused = null;
+    let folderSectionExpanded = true;
+    const collapsedSidebar = new Set();
+    const collapsedResults = new Set();
+    let resultParents = new Map(), resultChildren = new Map();
+    let lastResultSignature = null;
+    let lastEscapeAt = 0;
+    const isMac = /Mac|iPhone|iPad/.test(navigator.platform);
+    const findKey = isMac ? '⌘ F' : 'Ctrl+F';
+    const refineKey = isMac ? '⌥ F' : 'Alt+F';
+    const resultsKey = isMac ? '⌥ R' : 'Alt+R';
+    const copyKey = isMac ? '⌘ C' : 'Ctrl+C';
+    $('findShortcut').textContent = $('settingsFind').textContent = findKey;
+    $('refineShortcut').textContent = $('settingsRefine').textContent = refineKey;
+    $('resultsShortcut').textContent = $('settingsResults').textContent = resultsKey;
+    $('copyShortcut').textContent = $('settingsCopy').textContent = copyKey;
+
+    function profile(id) { return profiles.find(p => p.id === id); }
+    function folder(id) { return folders.find(f => f.id === id); }
+    function pathParts(id) { const parts=[]; let f=folder(id); while(f) { parts.unshift(f.name); f=folder(f.parent); } return parts; }
+    function pathOf(id) { return pathParts(id).join(' / '); }
+    function folderInScope(id) {
+      if (!scope) return true;
+      if (id === scope) return true;
+      let f=folder(id);
+      if ($('scopeMode').value === 'direct') return f?.parent === scope;
+      while(f && f.parent) { if (f.parent === scope) return true; f=folder(f.parent); }
+      return false;
+    }
+    function bookmarkInScope(item) {
+      if (!scope) return true;
+      if (item.folder === scope) return true;
+      return $('scopeMode').value === 'descendants' && folderInScope(item.folder);
+    }
+    function escapeHtml(s) { return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+    function parseQuery(input) {
+      const parts = input.match(/(?:\b(?:name|url|folder):)?(?:"[^"]*"|\S+)/gi) || [];
+      const groups=[[]];
+      for (const raw of parts) {
+        if (raw.toUpperCase() === 'OR') { groups.push([]); continue; }
+        if (raw.toUpperCase() === 'AND') continue;
+        const m=raw.match(/^(?:(name|url|folder):)?(.*)$/i);
+        const value=m[2].replace(/^"|"$/g,'');
+        if (value) groups[groups.length-1].push({field:m[1]?.toLowerCase() || null, value});
+      }
+      return groups.filter(g=>g.length);
+    }
+    function itemFields(item) {
+      return { name:item.name, url:item.url || '', folder:item.kind === 'folder' ? item.name : folder(item.folder)?.name || '' };
+    }
+    function matches(item, query, selectedFields, useRegex=false) {
+      if (!query.trim()) return true;
+      const fields=itemFields(item);
+      if (useRegex) {
+        try { const re=new RegExp(query,'i'); return selectedFields.some(key => re.test(fields[key])); }
+        catch { return false; }
+      }
+      const groups=parseQuery(query);
+      return groups.some(group => group.every(term => {
+        const keys=term.field ? [term.field] : selectedFields;
+        return keys.some(key => selectedFields.includes(key) && fields[key].toLowerCase().includes(term.value.toLowerCase()));
+      }));
+    }
+    function isStandaloneFolderSearch(query, fields, useRegex) {
+      if (!query || !fields.includes('folder')) return false;
+      if (useRegex) return true;
+      const groups=parseQuery(query);
+      return groups.length===1 && groups[0].length===1 && (!groups[0][0].field || groups[0][0].field==='folder');
+    }
+    function isInsideFolder(item, rootId) {
+      let current=folder(item.kind==='folder' ? item.parent : item.folder);
+      if (item.kind==='bookmark' && item.folder===rootId) return true;
+      while (current) {
+        if (current.id===rootId) return true;
+        current=folder(current.parent);
+      }
+      return false;
+    }
+    function filterForSearch(items, text, fields, useRegex=false) {
+      if (!text) return {items, folderIds:[]};
+      const folderIds=isStandaloneFolderSearch(text,fields,useRegex)
+        ? items.filter(item=>item.kind==='folder' && matches(item,text,['folder'],useRegex)).map(item=>item.id)
+        : [];
+      return {
+        items:items.filter(item=>matches(item,text,fields,useRegex) || folderIds.some(id=>isInsideFolder(item,id))),
+        folderIds
+      };
+    }
+    function highlight(value, query) {
+      if (!query || $('regex').checked) return escapeHtml(value);
+      const terms=parseQuery(query).flat().map(t=>t.value).filter(Boolean).sort((a,b)=>b.length-a.length);
+      if (!terms.length) return escapeHtml(value);
+      const escaped=terms.map(t=>t.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'));
+      const re=new RegExp('('+escaped.join('|')+')','ig');
+      return String(value).split(re).map(part => terms.some(t=>t.toLowerCase()===part.toLowerCase()) ? '<mark>'+escapeHtml(part)+'</mark>' : escapeHtml(part)).join('');
+    }
+    function focusFolder(id) { document.querySelector(`[data-folder="${id}"]`)?.focus(); }
+    function focusResult(id) { document.querySelector(`[data-item="${id}"]`)?.focus(); }
+    function sidebarChildren(id) { return folders.filter(f=>f.parent===id && profile(f.profile).enabled); }
+    function renderTree() {
+      const enabled=profiles.filter(p=>p.enabled);
+      $('profileCount').textContent=enabled.length;
+      $('allScope').classList.toggle('active', !scope);
+      $('foldersToggle').setAttribute('aria-expanded',String(folderSectionExpanded));
+      $('folderActions').hidden=!folderSectionExpanded;
+      $('folderTree').hidden=!folderSectionExpanded;
+      $('folderTree').setAttribute('role','tree');
+      if (!folderSectionExpanded) return;
+      // Build each profile tree separately to keep identical folder names and paths distinct.
+      $('folderTree').innerHTML=enabled.map(p=>{
+        const renderProfile=(parent,level)=>folders.filter(f=>f.profile===p.id && f.parent===parent).map(f=>{
+          const children=sidebarChildren(f.id), hasChildren=children.length>0, expanded=!collapsedSidebar.has(f.id);
+          return `<button class="tree-row ${scope===f.id?'active':''}" type="button" role="treeitem" aria-level="${level}" ${hasChildren?`aria-expanded="${expanded}"`:''} data-folder="${f.id}" style="padding-left:${17+(level-1)*15}px" title="${escapeHtml(pathOf(f.id))}"><span class="branch ${hasChildren?'':'leaf'}" data-branch aria-hidden="true">▾</span><span>${escapeHtml(f.name)}</span></button>${hasChildren && expanded?renderProfile(f.id,level+1):''}`;
+        }).join('');
+        return `<div class="profile-group"><div class="profile-label"><span class="edge-icon">e</span> Edge · ${escapeHtml(p.name)} <span class="profile-pill">${folders.filter(f=>f.profile===p.id).length}</span></div>${renderProfile(null,1)}</div>`;
+      }).join('') || '<p style="padding:10px;color:#8490a4;font-size:12px">No profiles enabled.</p>';
+      document.querySelectorAll('[data-folder]').forEach(el=>el.onclick=e=>{
+        const id=el.dataset.folder;
+        if (e.target.closest('[data-branch]') && sidebarChildren(id).length) {
+          collapsedSidebar.has(id)?collapsedSidebar.delete(id):collapsedSidebar.add(id);
+          renderTree(); focusFolder(id); return;
+        }
+        scope=id; selectedId=null; collapsedResults.clear(); render(); focusFolder(id);
+      });
+    }
+    function renderSettings() {
+      $('profileSettings').innerHTML=profiles.map(p=>`<label class="profile-setting"><span><strong><span class="edge-icon">e</span> &nbsp;${escapeHtml(p.name)}</strong><small>Microsoft Edge · sample local profile</small></span><input type="checkbox" data-profile="${p.id}" ${p.enabled?'checked':''} aria-label="Include ${escapeHtml(p.name)} profile"></label>`).join('');
+      document.querySelectorAll('[data-profile]').forEach(el=>el.onchange=()=>{
+        profile(el.dataset.profile).enabled=el.checked;
+        if (scope && !profile(folder(scope).profile).enabled) scope=null;
+        selectedId=null; collapsedResults.clear(); render();
+      });
+    }
+    function compareItems(a,b,query) {
+      if (a.kind!==b.kind) return a.kind==='folder'?-1:1;
+      if ($('sort').value==='alpha') return a.name.localeCompare(b.name)||a.profile.localeCompare(b.profile)||a.id.localeCompare(b.id);
+      const score=item=>{
+        const q=query.toLowerCase().replace(/(?:name|url|folder):|"|\bAND\b|\bOR\b/gi,'').trim();
+        if(!q) return 0;
+        const n=item.name.toLowerCase(); return n===q?3:n.startsWith(q)?2:n.includes(q)?1:0;
+      };
+      return score(b)-score(a)||a.name.localeCompare(b.name)||a.profile.localeCompare(b.profile)||a.id.localeCompare(b.id);
+    }
+    function arrangeResults(items,query) {
+      const folderIds=new Set(items.filter(i=>i.kind==='folder').map(i=>i.id));
+      resultParents=new Map(); resultChildren=new Map(); resultChildren.set(null,[]);
+      for (const item of items) {
+        let ancestor=item.kind==='folder'?folder(item.parent):folder(item.folder);
+        while (ancestor && !folderIds.has(ancestor.id)) ancestor=folder(ancestor.parent);
+        const parentId=ancestor?.id||null;
+        resultParents.set(item.id,parentId);
+        if (!resultChildren.has(parentId)) resultChildren.set(parentId,[]);
+        resultChildren.get(parentId).push(item);
+        if (item.kind==='folder' && !resultChildren.has(item.id)) resultChildren.set(item.id,[]);
+      }
+      for (const siblings of resultChildren.values()) siblings.sort((a,b)=>compareItems(a,b,query));
+      const ordered=[];
+      const walk=(parentId,level)=>{
+        for (const item of resultChildren.get(parentId)||[]) {
+          ordered.push({...item,level});
+          if (item.kind==='folder' && !collapsedResults.has(item.id)) walk(item.id,level+1);
+        }
+      };
+      walk(null,1);
+      return ordered;
+    }
+    function render() {
+      renderTree();
+      const enabled=profiles.filter(p=>p.enabled).map(p=>p.id);
+      const query=$('query').value.trim(), refine=$('refine').value.trim();
+      const fields=[...document.querySelectorAll('.field:checked')].map(el=>el.value);
+      const activeFolder=scope ? folder(scope) : null;
+      $('breadcrumbCurrent').textContent=activeFolder ? `${profile(activeFolder.profile).name} / ${pathOf(scope)}` : 'All bookmarks';
+      let items=[...folders.filter(f=>enabled.includes(f.profile) && folderInScope(f.id) && f.id!==scope).map(f=>({...f,kind:'folder'})), ...bookmarks.filter(b=>enabled.includes(b.profile) && bookmarkInScope(b)).map(b=>({...b,kind:'bookmark'}))];
+      const invalidRegex=$('regex').checked && query && (()=>{try {new RegExp(query);return false;}catch{return true;}})();
+      const primary=invalidRegex ? {items:[],folderIds:[]} : filterForSearch(items,query,fields,$('regex').checked);
+      const narrowed=filterForSearch(primary.items,refine,['name','url','folder']);
+      items=narrowed.items;
+      const matchedFolderIds=[...new Set([...primary.folderIds,...narrowed.folderIds])];
+      const directMatchCount=items.filter(item=>matches(item,query,fields,$('regex').checked) && matches(item,refine,['name','url','folder'])).length;
+      const signature=JSON.stringify([enabled,scope,$('scopeMode').value,query,refine,fields,$('regex').checked]);
+      if (signature!==lastResultSignature) {
+        collapsedResults.clear();
+        for (const item of items) {
+          if (item.kind!=='folder') continue;
+          const folderMatch=(isStandaloneFolderSearch(query,fields,$('regex').checked) && matches(item,query,['folder'],$('regex').checked)) || (isStandaloneFolderSearch(refine,['name','url','folder'],false) && matches(item,refine,['folder']));
+          if (folderMatch) collapsedResults.add(item.id);
+        }
+        lastResultSignature=signature;
+      }
+      visibleItems=arrangeResults(items,query);
+      if (!visibleItems.some(i=>i.id===selectedId)) selectedId=visibleItems[0]?.id||null;
+      $('resultTitle').textContent=query ? 'Search results' : activeFolder ? activeFolder.name : 'All bookmarks';
+      $('resultCaption').textContent=invalidRegex ? 'Invalid regular expression' : matchedFolderIds.length ? `${directMatchCount} matches · ${items.length} items with folder contents · ${visibleItems.length} visible` : `${items.length} matching ${items.length===1?'item':'items'} · ${visibleItems.length} visible · Folders first`;
+      const chips=[`Edge · ${enabled.length} enabled ${enabled.length===1?'profile':'profiles'}`];
+      if (activeFolder) chips.push(`${pathOf(scope)} · ${$('scopeMode').value==='direct'?'direct only':'with descendants'}`);
+      if (query) chips.push(`Query: ${query}`);
+      if (refine) chips.push(`Within results: ${refine}`);
+      if (matchedFolderIds.length) chips.push('Folder matches include contents');
+      chips.push($('regex').checked?'Regex mode':`Fields: ${fields.length?fields.map(f=>f==='folder'?'folder name':f).join(', '):'none'}`);
+      $('activeBar').innerHTML=chips.map((c,i)=>`<span class="chip ${i===0?'blue':''}">${escapeHtml(c)}</span>`).join('');
+      $('results').innerHTML=invalidRegex ? '<div class="empty"><strong>Check the regular expression</strong>The expression cannot be parsed.</div>' : !items.length ? '<div class="empty"><strong>No matches in this scope</strong>Try another query, field, folder, or enabled profile.</div>' : '<div class="list-head"><span>Item / location</span><span>Source</span></div>'+visibleItems.map(item=>{
+        const isFolder=item.kind==='folder', childCount=(resultChildren.get(item.id)||[]).length, expandable=isFolder && childCount>0;
+        const sub=isFolder ? `${pathOf(item.parent)||'Top level folder'}${expandable?' · '+childCount+' direct '+(childCount===1?'item':'items'):''}` : `${pathOf(item.folder)} · ${item.url}`;
+        return `<button class="result ${selectedId===item.id?'selected':''}" type="button" role="treeitem" aria-level="${item.level}" ${expandable?`aria-expanded="${!collapsedResults.has(item.id)}"`:''} aria-selected="${selectedId===item.id}" data-item="${item.id}" style="padding-left:${13+(item.level-1)*19}px"><span class="branch ${expandable?'':'leaf'}" data-result-branch aria-hidden="true">▾</span><span class="item-icon ${isFolder?'folder':''}">${isFolder?'▱':'↗'}</span><span class="item-body"><span class="item-title">${highlight(item.name,query)}</span><span class="item-sub">${highlight(sub,query)}</span></span><span class="source">Edge · ${escapeHtml(profile(item.profile).name)}</span></button>`;
+      }).join('');
+      document.querySelectorAll('[data-item]').forEach(el=>el.onclick=e=>{
+        const id=el.dataset.item, item=visibleItems.find(i=>i.id===id);
+        if (e.target.closest('[data-result-branch]') && item?.kind==='folder' && (resultChildren.get(id)||[]).length) {
+          collapsedResults.has(id)?collapsedResults.delete(id):collapsedResults.add(id);
+        }
+        selectedId=id; render(); focusResult(id);
+      });
+      renderDetail();
+    }
+    function renderDetail() {
+      const item=visibleItems.find(i=>i.id===selectedId);
+      if (!item) { $('detail').innerHTML='<div class="detail-head">Details</div><p style="color:#8290a4;font-size:12px">Select a folder or bookmark to see its source and full path.</p>'; return; }
+      const isFolder=item.kind==='folder', parts=isFolder?pathParts(item.id):pathParts(item.folder);
+      $('detail').innerHTML=`<div class="detail-head">Selected ${isFolder?'folder':'bookmark'}</div><div><div class="detail-icon">${isFolder?'▱':'↗'}</div><h2>${escapeHtml(item.name)}</h2>${isFolder?'':`<span class="detail-url">${escapeHtml(item.url)}</span>`}</div><div><div class="metadata"><div><span class="meta-label">Source</span><span class="meta-value"><span class="edge-icon">e</span> &nbsp;Microsoft Edge · ${escapeHtml(profile(item.profile).name)}</span></div><div><span class="meta-label">Full folder path</span><div class="path">${parts.map(p=>`<span>${escapeHtml(p)}</span>`).join('<b style="color:#a8b2c1">›</b>')}</div></div><div><span class="meta-label">Type</span><span class="meta-value">${isFolder?'Folder':'Bookmark'}</span></div></div><div class="detail-actions"><button class="btn btn-primary" id="openItem" type="button">${isFolder?'Open folder':'Open in default browser'} ↗</button>${isFolder?'':`<button class="btn" id="copyItem" type="button">Copy URL</button>`}</div></div><div class="read-only">Read-only preview. This mockup does not access or change Edge bookmark files.</div>`;
+      $('openItem').onclick=openSelected;
+      if (!isFolder) $('copyItem').onclick=copySelected;
+    }
+    function openSelected() {
+      const item=visibleItems.find(i=>i.id===selectedId); if(!item) return;
+      if (item.kind==='folder') {
+        if ((resultChildren.get(item.id)||[]).length && collapsedResults.has(item.id)) { collapsedResults.delete(item.id); render(); focusResult(item.id); }
+        else { scope=item.id; selectedId=null; collapsedResults.clear(); render(); toast('Folder scope: '+item.name); }
+      } else toast('Prototype action: open '+item.name+' in the default browser');
+    }
+    async function copySelected() {
+      const item=visibleItems.find(i=>i.id===selectedId); if(!item || item.kind!=='bookmark') return;
+      try { await navigator.clipboard.writeText(item.url); toast('URL copied'); }
+      catch { toast('Clipboard unavailable in this local preview'); }
+    }
+    let toastTimer;
+    function toast(message) { const el=$('toast'); el.textContent=message; el.classList.add('show'); clearTimeout(toastTimer); toastTimer=setTimeout(()=>el.classList.remove('show'),2400); }
+    function showSettings() { closeRereadMenu(); lastFocused=document.activeElement; renderSettings(); $('settingsModal').classList.add('show'); $('closeSettings').focus(); }
+    function hideSettings() { $('settingsModal').classList.remove('show'); lastFocused?.focus(); }
+    function resetSearch() {
+      $('query').value=''; $('refine').value=''; $('regex').checked=false;
+      document.querySelectorAll('.field').forEach(el=>el.checked=true);
+      $('scopeMode').value='descendants'; $('sort').value='relevance';
+      scope=null; selectedId=null; collapsedResults.clear();
+      render(); $('query').focus(); toast('Search and filters reset');
+    }
+    function focusGlobalSearch() {
+      if ($('settingsModal').classList.contains('show')) hideSettings();
+      scope=null; $('refine').value=''; selectedId=null; lastResultSignature=null;
+      render(); $('query').focus(); $('query').select();
+    }
+    function focusRefine() { if ($('settingsModal').classList.contains('show')) hideSettings(); $('refine').focus(); $('refine').select(); }
+    function focusResults() {
+      if ($('settingsModal').classList.contains('show')) hideSettings();
+      if (visibleItems.length) focusResult(selectedId || visibleItems[0].id);
+      else $('results').focus();
+    }
+    function renderRereadMenu() {
+      const sourceOptions=sources.map(s=>{
+        const count=profiles.filter(p=>p.source===s.id && p.enabled).length;
+        return `<button type="button" data-reread-source="${s.id}" ${count?'':'disabled'}><span>${escapeHtml(s.name)}</span><small>${count} enabled ${count===1?'profile':'profiles'}</small></button>`;
+      }).join('');
+      const profileOptions=profiles.map(p=>`<button type="button" data-reread-profile="${p.id}" ${p.enabled?'':'disabled'}><span>Edge · ${escapeHtml(p.name)}</span><small>${p.enabled?'Enabled':'Enable first'}</small></button>`).join('');
+      $('rereadMenu').innerHTML=`<div class="reread-menu-label">By source</div>${sourceOptions}<div class="menu-rule"></div><div class="reread-menu-label">By profile</div>${profileOptions}`;
+    }
+    function closeRereadMenu() { $('rereadMenu').hidden=true; $('rereadMenuButton').setAttribute('aria-expanded','false'); }
+    function toggleRereadMenu() {
+      if (!$('rereadMenu').hidden) { closeRereadMenu(); return; }
+      renderRereadMenu(); $('rereadMenu').hidden=false; $('rereadMenuButton').setAttribute('aria-expanded','true');
+      $('rereadMenu').querySelector('button:not(:disabled)')?.focus();
+    }
+    function rereadTargets(kind,id=null) {
+      const target=profiles.filter(p=>p.enabled && (kind==='all' || (kind==='source' && p.source===id) || (kind==='profile' && p.id===id)));
+      const label=kind==='all' ? 'All enabled sources' : kind==='source' ? sources.find(s=>s.id===id)?.name : `${sources.find(s=>s.id===profile(id)?.source)?.name} · ${profile(id)?.name}`;
+      if (!target.length) {
+        $('sourceStatus').textContent=`Sample re-read skipped · ${label || 'Selection'} has no enabled profiles.`;
+        toast('No enabled profiles to re-read'); return;
+      }
+      const sampleFolders={personal:'p-reading',work:'w-research',archive:'a-ideas'};
+      let added=0;
+      for (const p of target) {
+        const id=`sample-refresh-${p.id}`;
+        if (bookmarks.some(b=>b.id===id)) continue;
+        bookmarks.push({id,profile:p.id,folder:sampleFolders[p.id],name:`Newly saved reference · ${p.name}`,url:`https://sample.example.com/${p.id}/new-reference`});
+        added++;
+      }
+      lastResultSignature=null;
+      render();
+      $('sourceStatus').textContent=`Preview re-read · ${label} · ${target.length} ${target.length===1?'profile':'profiles'} · ${added} new sample ${added===1?'bookmark':'bookmarks'} · no browser files accessed.`;
+      toast(`${label} re-read · ${added} new sample ${added===1?'bookmark':'bookmarks'}`);
+    }
+    function setAllFoldersExpanded(expanded) {
+      if (expanded) collapsedSidebar.clear();
+      else folders.filter(f=>profile(f.profile).enabled && sidebarChildren(f.id).length).forEach(f=>collapsedSidebar.add(f.id));
+      renderTree();
+    }
+    function handleSidebarKeys(e, id) {
+      const row=document.querySelector(`[data-folder="${id}"]`);
+      if (!row) return;
+      const rows=[...document.querySelectorAll('[data-folder]')], at=rows.indexOf(row), children=sidebarChildren(id);
+      if (e.key==='ArrowDown' || e.key==='ArrowUp') { e.preventDefault(); rows[Math.max(0,Math.min(rows.length-1,at+(e.key==='ArrowDown'?1:-1)))]?.focus(); }
+      if (e.key==='ArrowRight') { e.preventDefault(); if (children.length && collapsedSidebar.has(id)) { collapsedSidebar.delete(id); renderTree(); focusFolder(id); } else if (children.length) focusFolder(children[0].id); }
+      if (e.key==='ArrowLeft') { e.preventDefault(); if (children.length && !collapsedSidebar.has(id)) { collapsedSidebar.add(id); renderTree(); focusFolder(id); } else if (folder(id).parent) focusFolder(folder(id).parent); }
+      if (e.key==='Home') { e.preventDefault(); rows[0]?.focus(); }
+      if (e.key==='End') { e.preventDefault(); rows.at(-1)?.focus(); }
+    }
+    function handleResultKeys(e,id) {
+      const item=visibleItems.find(i=>i.id===id); if(!item) return;
+      const at=visibleItems.findIndex(i=>i.id===id);
+      if (e.key==='ArrowDown' || e.key==='ArrowUp') {
+        e.preventDefault(); selectedId=visibleItems[Math.max(0,Math.min(visibleItems.length-1,at+(e.key==='ArrowDown'?1:-1)))].id;
+        render(); focusResult(selectedId); return;
+      }
+      if (e.key==='ArrowRight' && item.kind==='folder') {
+        e.preventDefault(); const children=resultChildren.get(id)||[];
+        if (children.length && collapsedResults.has(id)) { collapsedResults.delete(id); render(); focusResult(id); }
+        else if (children.length) { selectedId=children[0].id; render(); focusResult(selectedId); }
+      }
+      if (e.key==='ArrowLeft') {
+        e.preventDefault(); const children=resultChildren.get(id)||[];
+        if (item.kind==='folder' && children.length && !collapsedResults.has(id)) { collapsedResults.add(id); render(); focusResult(id); }
+        else { const parent=resultParents.get(id); if(parent) { selectedId=parent; render(); focusResult(parent); } }
+      }
+      if (e.key==='Enter') { e.preventDefault(); selectedId=id; openSelected(); }
+      if (e.key==='Home') { e.preventDefault(); selectedId=visibleItems[0].id; render(); focusResult(selectedId); }
+      if (e.key==='End') { e.preventDefault(); selectedId=visibleItems.at(-1).id; render(); focusResult(selectedId); }
+    }
+    $('settingsButton').onclick=showSettings; $('closeSettings').onclick=hideSettings;
+    $('settingsModal').onclick=e=>{ if(e.target===$('settingsModal')) hideSettings(); };
+    $('foldersToggle').onclick=()=>{ folderSectionExpanded=!folderSectionExpanded; renderTree(); $('foldersToggle').focus(); };
+    $('collapseAllFolders').onclick=()=>setAllFoldersExpanded(false);
+    $('expandAllFolders').onclick=()=>setAllFoldersExpanded(true);
+    $('allScope').onclick=()=>{scope=null;selectedId=null;lastResultSignature=null;render();};
+    $('searchButton').onclick=render;
+    $('rereadButton').onclick=()=>{closeRereadMenu();rereadTargets('all');};
+    $('rereadMenuButton').onclick=toggleRereadMenu;
+    $('rereadMenu').onclick=e=>{
+      const sourceButton=e.target.closest('[data-reread-source]'), profileButton=e.target.closest('[data-reread-profile]');
+      if (sourceButton && !sourceButton.disabled) {closeRereadMenu();rereadTargets('source',sourceButton.dataset.rereadSource);}
+      if (profileButton && !profileButton.disabled) {closeRereadMenu();rereadTargets('profile',profileButton.dataset.rereadProfile);}
+    };
+    document.addEventListener('click',e=>{if (!$('rereadControl').contains(e.target)) closeRereadMenu();});
+    $('syntaxButton').onclick=()=>{ const shown=$('syntaxMenu').classList.toggle('show'); $('syntaxButton').setAttribute('aria-expanded',shown); };
+    for (const id of ['query','refine','scopeMode','sort','regex']) $(id).addEventListener(id==='query'||id==='refine'?'input':'change',render);
+    document.querySelectorAll('.field').forEach(el=>el.addEventListener('change',render));
+    $('results').ondblclick=e=>{ const row=e.target.closest('[data-item]'); if(row) {selectedId=row.dataset.item;openSelected();} };
+    document.addEventListener('keydown',e=>{
+      if (e.key==='Escape' && !e.repeat) {
+        e.preventDefault();
+        if (!$('rereadMenu').hidden) {closeRereadMenu();$('rereadMenuButton').focus();lastEscapeAt=0;return;}
+        if ($('settingsModal').classList.contains('show')) { hideSettings(); lastEscapeAt=0; return; }
+        $('syntaxMenu').classList.remove('show'); $('syntaxButton').setAttribute('aria-expanded','false');
+        const now=performance.now();
+        if (now-lastEscapeAt<=700) {lastEscapeAt=0;resetSearch();}
+        else {lastEscapeAt=now;toast('Press Esc again to reset search and filters');}
+        return;
+      }
+      const isF=e.code==='KeyF' || e.key.toLowerCase()==='f';
+      const isR=e.code==='KeyR' || e.key.toLowerCase()==='r';
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && isF) {e.preventDefault();focusGlobalSearch();return;}
+      if (e.altKey && !e.metaKey && !e.ctrlKey && isF) {e.preventDefault();focusRefine();return;}
+      if (e.altKey && !e.metaKey && !e.ctrlKey && isR) {e.preventDefault();focusResults();return;}
+      if ($('settingsModal').classList.contains('show')) return;
+      const folderRow=e.target.closest?.('[data-folder]');
+      if (folderRow) {handleSidebarKeys(e,folderRow.dataset.folder);return;}
+      if (e.target===$('foldersToggle')) {
+        if (e.key==='ArrowRight' && !folderSectionExpanded) {e.preventDefault();folderSectionExpanded=true;renderTree();}
+        if (e.key==='ArrowLeft' && folderSectionExpanded) {e.preventDefault();folderSectionExpanded=false;renderTree();}
+        if (e.key==='ArrowDown' && folderSectionExpanded) {e.preventDefault();document.querySelector('[data-folder]')?.focus();}
+        return;
+      }
+      const resultRow=e.target.closest?.('[data-item]');
+      if (e.target===$('results') && visibleItems.length && ['ArrowDown','ArrowUp','Enter'].includes(e.key)) {e.preventDefault();focusResult(selectedId || visibleItems[0].id);return;}
+      if ((e.metaKey||e.ctrlKey) && e.key.toLowerCase()==='c' && resultRow) { e.preventDefault(); selectedId=resultRow.dataset.item; copySelected(); return; }
+      if (resultRow) {handleResultKeys(e,resultRow.dataset.item);return;}
+      const inEditor=['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName);
+      if (inEditor) return;
+      if (e.key==='Enter' && document.activeElement.id==='openItem') { e.preventDefault(); openSelected(); }
+    });
+    render();
+  </script>
+</body>
+</html>

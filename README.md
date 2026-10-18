@@ -20,6 +20,7 @@ This repository contains the project foundation. The desktop runtime, supported 
 | `fixtures/` | Synthetic, non-personal browser data for development and tests |
 | `docs/architecture.md` | System boundaries and data flow |
 | `docs/decisions/` | Recorded product and architecture decisions |
+| `apps/desktop/wireframe.html` | Interactive desktop wireframe using synthetic bookmarks |
 | `PRODUCT.md` | Product scope and terminology |
 | `AGENTS.md` | Guidance for coding agents |
 
