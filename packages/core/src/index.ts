@@ -321,3 +321,35 @@ export function arrangeTree(items: Item[], collapsed: ReadonlySet<string>): { vi
   walk("", 1);
   return { visible, children, parents };
 }
+
+export function folderBranchIds(children: ReadonlyMap<string, readonly Item[]>, rootId: string): string[] {
+  const branch: string[] = [];
+  const seen = new Set<string>();
+  const pending = [rootId];
+  while (pending.length) {
+    const id = pending.pop()!;
+    if (seen.has(id)) continue;
+    seen.add(id);
+    branch.push(id);
+    for (const child of children.get(id) || []) if (child.kind === "folder") pending.push(child.id);
+  }
+  return branch;
+}
+
+export function bookmarkCountsByFolder(items: Item[]): Map<string, number> {
+  const folders = new Map(items.filter((item): item is Folder => item.kind === "folder").map(folder => [folder.id, folder]));
+  const counts = new Map<string, number>([...folders.keys()].map(id => [id, 0]));
+  for (const item of items) {
+    if (item.kind !== "bookmark") continue;
+    let id = item.parentId;
+    const seen = new Set<string>();
+    while (id && !seen.has(id)) {
+      const folder = folders.get(id);
+      if (!folder || folder.source.browserId !== item.source.browserId || folder.source.profileId !== item.source.profileId) break;
+      seen.add(id);
+      counts.set(id, counts.get(id)! + 1);
+      id = folder.parentId;
+    }
+  }
+  return counts;
+}

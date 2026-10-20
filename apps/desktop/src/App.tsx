@@ -1,13 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  arrangeTree, folderPath, fuzzyWordMatch, parseQuery, type Field, type Folder, type Item, type MatchSpan,
+  arrangeTree, bookmarkCountsByFolder, folderBranchIds, folderPath, fuzzyWordMatch, parseQuery, type Field, type Folder, type Item, type MatchSpan,
   type ProfileData, type ScopeMode, type SearchOptions, type SearchResult, type Sort
 } from "@bookmarktivity/core";
 import { inTauri, native, type EdgeProfile, type Preferences } from "./native";
 import { benchmarkSample, sampleData, sampleProfiles } from "./sample";
 import brandMark from "./assets/bookmarktivity-mark.svg";
 
-const defaultPrefs: Preferences = { enabledProfileIds: [], edgeUserDataDir: null };
+const defaultPrefs: Preferences = { enabledProfileIds: [], edgeUserDataDir: null, theme: "light" };
 const defaultOptions: SearchOptions = {
   query: "", refine: "", fields: ["name", "url", "folder"], regex: false,
   scopeId: null, scopeMode: "descendants", sort: "relevance"
@@ -21,10 +21,23 @@ const defaultBindings: Record<ShortcutAction, string> = {
   copy: mac ? "Meta+C" : "Ctrl+C",
   settings: mac ? "Meta+," : "Ctrl+,"
 };
+const expandBranchShortcut = mac ? "Meta+E" : "Ctrl+E";
+const collapseBranchShortcut = mac ? "Meta+Shift+E" : "Ctrl+Shift+E";
 const shortcutNames: Record<ShortcutAction, string> = {
   find: "Global search", refine: "Search within results", results: "Navigate to results", copy: "Copy selected URL", settings: "Profiles & settings"
 };
 const labelFor = (binding: string) => binding.replace("Meta", "⌘").replace("Alt", mac ? "⌥" : "Alt").replace("Shift", "⇧").replaceAll("+", " ");
+const sidebarLimits = { left: { min: 170, max: 420, initial: 238 }, right: { min: 210, max: 500, initial: 302 } } as const;
+type SidebarSide = keyof typeof sidebarLimits;
+type FolderSurface = "nav" | "results";
+type FolderMenu = { surface: FolderSurface; id: string; x: number; y: number };
+function storedSidebarWidth(side: SidebarSide): number {
+  try {
+    const saved = Number(window.localStorage.getItem(`bookmarktivity-${side}-sidebar-width`));
+    const { min, max, initial } = sidebarLimits[side];
+    return Number.isFinite(saved) && saved >= min && saved <= max ? saved : initial;
+  } catch { return sidebarLimits[side].initial; }
+}
 function chordFor(event: KeyboardEvent | React.KeyboardEvent): string | null {
   if (["Meta", "Control", "Alt", "Shift"].includes(event.key)) return null;
   const modifiers = [event.metaKey && "Meta", event.ctrlKey && "Ctrl", event.altKey && "Alt", event.shiftKey && "Shift"].filter(Boolean);
@@ -144,9 +157,18 @@ export default function App() {
   const [collapsedNav, setCollapsedNav] = useState<Set<string>>(new Set());
   const [collapsedResults, setCollapsedResults] = useState<Set<string>>(new Set());
   const [foldersOpen, setFoldersOpen] = useState(true);
+  const [leftSidebarOpen, setLeftSidebarOpen] = useState(true);
+  const [rightSidebarOpen, setRightSidebarOpen] = useState(true);
+  const [showBookmarkCounts, setShowBookmarkCounts] = useState(() => {
+    try { return window.localStorage.getItem("bookmarktivity-show-bookmark-counts") !== "false"; }
+    catch { return true; }
+  });
+  const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => storedSidebarWidth("left"));
+  const [rightSidebarWidth, setRightSidebarWidth] = useState(() => storedSidebarWidth("right"));
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [syntaxOpen, setSyntaxOpen] = useState(false);
   const [refreshOpen, setRefreshOpen] = useState(false);
+  const [folderMenu, setFolderMenu] = useState<FolderMenu | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("Choose an Edge profile in Settings to begin.");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -155,8 +177,12 @@ export default function App() {
   const [capturingShortcut, setCapturingShortcut] = useState<ShortcutAction | null>(null);
   const [shortcutDraft, setShortcutDraft] = useState("");
   const queryRef = useRef<HTMLInputElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const resizing = useRef<{ side: SidebarSide; startX: number; startWidth: number } | null>(null);
   const refineRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
+  const folderMenuRef = useRef<HTMLDivElement>(null);
   const navInitialized = useRef(false);
   const [resultScroll, setResultScroll] = useState(0);
   const [resultHeight, setResultHeight] = useState(560);
@@ -170,6 +196,45 @@ export default function App() {
     toastTimer.current = window.setTimeout(() => setToast(""), 2600);
   }, []);
 
+  useEffect(() => {
+    try { window.localStorage.setItem("bookmarktivity-left-sidebar-width", String(leftSidebarWidth)); } catch { /* layout still works without storage */ }
+  }, [leftSidebarWidth]);
+  useEffect(() => {
+    try { window.localStorage.setItem("bookmarktivity-right-sidebar-width", String(rightSidebarWidth)); } catch { /* layout still works without storage */ }
+  }, [rightSidebarWidth]);
+  useEffect(() => {
+    try { window.localStorage.setItem("bookmarktivity-show-bookmark-counts", String(showBookmarkCounts)); } catch { /* the toggle still works without storage */ }
+  }, [showBookmarkCounts]);
+  useEffect(() => {
+    document.documentElement.dataset.theme = prefs.theme === "dark" ? "dark" : "light";
+  }, [prefs.theme]);
+
+  const resizeSidebar = (side: SidebarSide, width: number) => {
+    const { min, max } = sidebarLimits[side];
+    const available = side === "left"
+      ? (frameRef.current?.clientWidth || window.innerWidth) - (rightSidebarOpen ? rightSidebarWidth : 0) - 320
+      : (contentRef.current?.clientWidth || window.innerWidth) - 320;
+    const next = Math.max(min, Math.min(max, Math.max(min, available), width));
+    (side === "left" ? setLeftSidebarWidth : setRightSidebarWidth)(next);
+  };
+  const startSidebarResize = (side: SidebarSide, event: React.PointerEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    resizing.current = { side, startX: event.clientX, startWidth: side === "left" ? leftSidebarWidth : rightSidebarWidth };
+  };
+  const moveSidebarResize = (event: React.PointerEvent<HTMLDivElement>) => {
+    const drag = resizing.current;
+    if (!drag) return;
+    resizeSidebar(drag.side, drag.startWidth + (event.clientX - drag.startX) * (drag.side === "left" ? 1 : -1));
+  };
+  const stopSidebarResize = () => { resizing.current = null; };
+  const sidebarResizeKey = (side: SidebarSide, event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+    event.preventDefault();
+    const direction = event.key === "ArrowRight" ? 1 : -1;
+    resizeSidebar(side, (side === "left" ? leftSidebarWidth : rightSidebarWidth) + direction * (side === "left" ? 20 : -20));
+  };
+
   const enabled = useMemo(() => profiles.filter(p => prefs.enabledProfileIds.includes(p.id)), [profiles, prefs]);
   const bindings = useMemo(() => ({ ...defaultBindings, ...prefs.shortcuts }) as Record<ShortcutAction, string>, [prefs.shortcuts]);
   const allItems = useMemo(() => enabled.flatMap(profile => {
@@ -177,6 +242,7 @@ export default function App() {
     return profileData ? [...profileData.folders, ...profileData.bookmarks] : [];
   }), [enabled, data]);
   const folderMap = useMemo(() => new Map(allItems.filter((item): item is Folder => item.kind === "folder").map(item => [item.id, item])), [allItems]);
+  const bookmarkCounts = useMemo(() => bookmarkCountsByFolder(allItems), [allItems]);
   const folderChildren = useMemo(() => {
     const children = new Map<string, Folder[]>();
     for (const item of allItems) {
@@ -189,10 +255,9 @@ export default function App() {
   }, [allItems]);
   const profileMap = useMemo(() => new Map(profiles.map(profile => [profile.id, profile])), [profiles]);
   const result = useSearch(allItems, options);
-  useEffect(() => {
-    const searching = Boolean(options.query.trim() || options.refine.trim());
-    setCollapsedResults(new Set(searching ? result.items.filter(item => item.kind === "folder").map(item => item.id) : []));
-  }, [result.items, options.query, options.refine]);
+  useLayoutEffect(() => {
+    setCollapsedResults(new Set(result.items.filter(item => item.kind === "folder").map(item => item.id)));
+  }, [result.items]);
   const tree = useMemo(() => arrangeTree(result.items, collapsedResults), [result.items, collapsedResults]);
   const visible = tree.visible;
   const virtual = visible.length > 250;
@@ -234,7 +299,9 @@ export default function App() {
     loaded.current = true;
     if (!inTauri) {
       setProfiles(sampleProfiles);
-      setPrefs({ enabledProfileIds: ["sample-personal", "sample-work"], edgeUserDataDir: null });
+      let previewTheme: "light" | "dark" = "light";
+      try { if (window.localStorage.getItem("bookmarktivity-theme") === "dark") previewTheme = "dark"; } catch { /* use light theme */ }
+      setPrefs({ enabledProfileIds: ["sample-personal", "sample-work"], edgeUserDataDir: null, theme: previewTheme });
       const benchmark = import.meta.env.DEV && new URLSearchParams(location.search).has("benchmark");
       setData(benchmark ? benchmarkSample() : sampleData);
       setStatus(benchmark
@@ -324,7 +391,8 @@ export default function App() {
       const next: Preferences = {
         enabledProfileIds: sameDirectory ? prefs.enabledProfileIds.filter(id => found.some(profile => profile.id === id)) : [],
         edgeUserDataDir: directory,
-        shortcuts: prefs.shortcuts
+        shortcuts: prefs.shortcuts,
+        theme: prefs.theme
       };
       await native.savePreferences(next);
       setPrefs(next);
@@ -344,6 +412,14 @@ export default function App() {
       setPrefs(next);
       return true;
     } catch (error) { notify(String(error)); return false; }
+  };
+  const saveTheme = async (theme: "light" | "dark") => {
+    const next = { ...prefs, theme };
+    try {
+      if (inTauri) await native.savePreferences(next);
+      else window.localStorage.setItem("bookmarktivity-theme", theme);
+      setPrefs(next);
+    } catch (error) { notify(String(error)); }
   };
   const applyShortcut = async (action: ShortcutAction, input: string) => {
     const chord = normalizeShortcut(input);
@@ -384,11 +460,53 @@ export default function App() {
     document.querySelector<HTMLElement>(`[data-folder-id="${CSS.escape(id)}"]`)?.focus();
   });
   const setResultCollapsed = (id: string, collapsed: boolean) => {
-    setCollapsedResults(previous => { const next = new Set(previous); collapsed ? next.add(id) : next.delete(id); return next; });
+    setCollapsedResults(previous => {
+      const next = new Set(previous);
+      if (collapsed) next.add(id);
+      else {
+        next.delete(id);
+        for (const descendant of folderBranchIds(tree.children, id).slice(1)) next.add(descendant);
+      }
+      return next;
+    });
   };
   const setNavCollapsed = (id: string, collapsed: boolean) => {
-    setCollapsedNav(previous => { const next = new Set(previous); collapsed ? next.add(id) : next.delete(id); return next; });
+    setCollapsedNav(previous => {
+      const next = new Set(previous);
+      if (collapsed) next.add(id);
+      else {
+        next.delete(id);
+        for (const descendant of folderBranchIds(folderChildren, id).slice(1)) next.add(descendant);
+      }
+      return next;
+    });
   };
+  const changeFolderBranch = (surface: FolderSurface, id: string, collapsed: boolean) => {
+    const branch = folderBranchIds(surface === "nav" ? folderChildren : tree.children, id);
+    const update = (previous: Set<string>) => {
+      const next = new Set(previous);
+      for (const folderId of branch) collapsed ? next.add(folderId) : next.delete(folderId);
+      return next;
+    };
+    (surface === "nav" ? setCollapsedNav : setCollapsedResults)(update);
+    if (surface === "results") setSelectedId(id);
+    setFolderMenu(null);
+    surface === "nav" ? focusFolder(id) : focusResult(id);
+  };
+  const openFolderMenu = (surface: FolderSurface, id: string, event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    if (surface === "results") setSelectedId(id);
+    setFolderMenu({ surface, id, x: Math.max(8, Math.min(event.clientX, window.innerWidth - 205)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 100)) });
+  };
+  useEffect(() => {
+    if (!folderMenu) return;
+    requestAnimationFrame(() => folderMenuRef.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus());
+    const dismiss = (event: PointerEvent) => {
+      if (!folderMenuRef.current?.contains(event.target as Node)) setFolderMenu(null);
+    };
+    document.addEventListener("pointerdown", dismiss);
+    return () => document.removeEventListener("pointerdown", dismiss);
+  }, [folderMenu]);
   const openItem = async (item: Item | null) => {
     if (!item) return;
     if (item.kind === "folder") {
@@ -407,7 +525,7 @@ export default function App() {
   };
   const reset = () => {
     setOptions(defaultOptions);
-    setCollapsedResults(new Set());
+    setCollapsedResults(new Set(result.items.filter(item => item.kind === "folder").map(item => item.id)));
     setSelectedId(null);
     queryRef.current?.focus();
     notify("Search and filters reset");
@@ -435,8 +553,22 @@ export default function App() {
       if (chord === bindings.settings) {
         event.preventDefault(); setSettingsOpen(true); return;
       }
+      if (!settingsOpen && (chord === expandBranchShortcut || chord === collapseBranchShortcut)) {
+        const target = event.target as HTMLElement;
+        const navId = target.closest<HTMLElement>("[data-folder-id]")?.dataset.folderId;
+        const resultId = target.closest<HTMLElement>("[data-result-id]")?.dataset.resultId;
+        const branch = folderMenu || (navId ? { surface: "nav" as const, id: navId }
+          : resultId && folderMap.has(resultId) ? { surface: "results" as const, id: resultId }
+          : selected?.kind === "folder" ? { surface: "results" as const, id: selected.id } : null);
+        if (branch) {
+          event.preventDefault();
+          changeFolderBranch(branch.surface, branch.id, chord === collapseBranchShortcut);
+          return;
+        }
+      }
       if (event.key === "Escape") {
         event.preventDefault();
+        if (folderMenu) { setFolderMenu(null); return; }
         if (settingsOpen) { setSettingsOpen(false); return; }
         if (refreshOpen || syntaxOpen) { setRefreshOpen(false); setSyntaxOpen(false); return; }
         if (performance.now() - escapeAt.current < 700) { escapeAt.current = 0; reset(); }
@@ -501,20 +633,17 @@ export default function App() {
         <button type="button" className={`tree-row ${options.scopeId === folder.id ? "active" : ""}`}
           role="treeitem" aria-level={level} aria-expanded={children.length ? open : undefined}
           data-folder-id={folder.id} style={{ paddingLeft: 17 + (level - 1) * 15 }}
+          onContextMenu={event => openFolderMenu("nav", folder.id, event)}
           onClick={event => {
             if ((event.target as HTMLElement).closest("[data-branch]") && children.length) {
-              setCollapsedNav(previous => {
-                const next = new Set(previous);
-                open ? next.add(folder.id) : next.delete(folder.id);
-                return next;
-              });
+              setNavCollapsed(folder.id, open);
             } else {
               setOptions(previous => ({ ...previous, scopeId: folder.id }));
-              setCollapsedResults(new Set());
             }
           }}>
           <span className={`branch ${open ? "open" : ""} ${children.length ? "" : "leaf"}`} data-branch aria-hidden="true"><Chevron /></span>
-          <span>{folder.name}</span>
+          <span className="folder-label">{folder.name}</span>
+          {showBookmarkCounts && <span className="bookmark-count" title="Bookmarks including subfolders" aria-label={`${bookmarkCounts.get(folder.id) || 0} bookmarks including subfolders`}>{bookmarkCounts.get(folder.id) || 0}</span>}
         </button>
         {open && children.map(child => renderFolder(child, level + 1))}
       </div>;
@@ -523,10 +652,10 @@ export default function App() {
       <div className="profile-label"><span className="edge-icon">e</span> Edge · {profile.name}</div>
       {(folderChildren.get("") || []).filter(folder => folder.source.profileId === profile.id).map(folder => renderFolder(folder, 1))}
     </div>);
-  }, [enabled, folderChildren, collapsedNav, options.scopeId]);
+  }, [enabled, folderChildren, collapsedNav, options.scopeId, showBookmarkCounts, bookmarkCounts]);
 
-  return <div className="frame">
-    <aside className="sidebar" aria-label="Folder scope">
+  return <div className="frame" ref={frameRef} style={{ gridTemplateColumns: `${leftSidebarOpen ? leftSidebarWidth : 0}px minmax(0, 1fr)` }}>
+    {leftSidebarOpen && <aside className="sidebar" id="folder-sidebar" aria-label="Folder scope">
       <div className="side-brand"><img className="brand-mark" src={brandMark} alt="" /> Bookmarktivity</div>
       <div className="side-kicker">Workspace</div>
       <button className={`scope-row ${!options.scopeId ? "active" : ""}`} onClick={() => updateOptions({ scopeId: null })}><span className="nav-icon">◫</span> All bookmarks <span className="count">{enabled.length}</span></button>
@@ -547,13 +676,14 @@ export default function App() {
           <option value="descendants">Including descendants</option><option value="direct">Direct contents only</option>
         </select>
       </div>
-    </aside>
+    </aside>}
+    {leftSidebarOpen && <div className="resize-handle left-resize" role="separator" aria-label="Resize folders sidebar" aria-orientation="vertical" aria-valuemin={sidebarLimits.left.min} aria-valuemax={sidebarLimits.left.max} aria-valuenow={leftSidebarWidth} tabIndex={0} style={{ left: leftSidebarWidth - 4 }} onPointerDown={event => startSidebarResize("left", event)} onPointerMove={moveSidebarResize} onPointerUp={stopSidebarResize} onPointerCancel={stopSidebarResize} onKeyDown={event => sidebarResizeKey("left", event)} />}
     <div className="workspace">
       <div className="titlebar"><div className="breadcrumb"><span>Workspace</span><span>›</span><strong>{scopedFolder ? `${profileMap.get(scopedFolder.source.profileId)?.name} / ${folderPath(scopedFolder.id, folderMap).map(f => f.name).join(" / ")}` : "All bookmarks"}</strong></div>
-        <div className="top-actions"><span className="top-status"><span className="status-dot" />{inTauri ? "Local workspace" : "Browser preview"}</span><button className="btn" onClick={() => setSettingsOpen(true)}>⚙ &nbsp;Profiles & settings</button></div>
+        <div className="top-actions"><button className="btn sidebar-toggle" aria-controls={leftSidebarOpen ? "folder-sidebar" : undefined} aria-expanded={leftSidebarOpen} onClick={() => setLeftSidebarOpen(open => !open)}>{leftSidebarOpen ? "Hide folders" : "Show folders"}</button><button className="btn sidebar-toggle" aria-controls={rightSidebarOpen ? "details-sidebar" : undefined} aria-expanded={rightSidebarOpen} onClick={() => setRightSidebarOpen(open => !open)}>{rightSidebarOpen ? "Hide details" : "Show details"}</button><button className="btn sidebar-toggle" aria-pressed={showBookmarkCounts} onClick={() => setShowBookmarkCounts(show => !show)}>{showBookmarkCounts ? "Hide counts" : "Show counts"}</button><button className="btn" onClick={() => setSettingsOpen(true)}>⚙ &nbsp;Profiles & settings</button></div>
       </div>
-      <div className="content"><main className="main">
-        <header className="top"><span className="eyebrow">Your knowledge, one place</span><h1>Find what matters, faster.</h1><p className="subtitle">Explore bookmarks across your chosen profiles, with every source clearly in view.</p>
+      <div className="content" ref={contentRef} style={{ gridTemplateColumns: `minmax(0, 1fr) ${rightSidebarOpen ? rightSidebarWidth : 0}px` }}><main className="main">
+        <header className="top">
           <div className="search-panel"><div className="search-row"><div className="search-wrap"><span className="search-icon">⌕</span><input ref={queryRef} type="search" aria-label="Search bookmarks" placeholder="Search by name, folder or URL…" value={options.query} onChange={event => updateOptions({ query: event.target.value })} /><span className="key">{labelFor(bindings.find)}</span></div><button className="btn btn-primary" onClick={() => queryRef.current?.focus()}>Search ↵</button></div>
             <div className="search-options"><span className="option-label">Search in</span>
               {(["name", "url", "folder"] as Field[]).map(field => <label className="check" key={field}><input type="checkbox" checked={options.fields.includes(field)} onChange={event => updateOptions({ fields: event.target.checked ? [...options.fields, field] : options.fields.filter(value => value !== field) })} />{field === "folder" ? "Folder name" : field === "url" ? "URL" : "Name"}</label>)}
@@ -593,24 +723,38 @@ export default function App() {
               return <button className={`result ${selected?.id === item.id ? "selected" : ""}`} key={item.id}
                 role="treeitem" aria-level={item.level} aria-expanded={isFolder && childCount ? expanded : undefined} aria-selected={selected?.id === item.id}
                 data-result-id={item.id} style={virtual ? { position: "absolute", top: (firstVisible + offset) * rowHeight, width: "100%", height: 68, paddingLeft: 13 + (item.level - 1) * 19 } : { paddingLeft: 13 + (item.level - 1) * 19 }}
+                onContextMenu={isFolder ? event => openFolderMenu("results", item.id, event) : undefined}
                 onClick={event => { setSelectedId(item.id); if ((event.target as HTMLElement).closest("[data-result-branch]") && isFolder && childCount) setResultCollapsed(item.id, expanded); focusResult(item.id); }}
                 onDoubleClick={() => { setSelectedId(item.id); void openItem(item); }}>
-                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Chevron /></span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={textQueries} spans={titleSpans} /></span><span className="item-sub"><Highlight value={sub} queries={textQueries} spans={subSpans} /></span></span><span className="source">Edge · {item.source.profileName}</span>
+                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Chevron /></span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={textQueries} spans={titleSpans} /></span><span className="item-sub"><Highlight value={sub} queries={textQueries} spans={subSpans} /></span></span>{isFolder && showBookmarkCounts && <span className="bookmark-count" title="Bookmarks including subfolders" aria-label={`${bookmarkCounts.get(item.id) || 0} bookmarks including subfolders`}>{bookmarkCounts.get(item.id) || 0}</span>}<span className="source">Edge · {item.source.profileName}</span>
               </button>;
             })}
             </div>
           </>}
         </div>
       </main>
-      <aside className="detail" aria-label="Selected item details"><div className="detail-head">{selected ? `Selected ${selected.kind}` : "Details"}</div>{selected ? <>
+      {rightSidebarOpen && <div className="resize-handle right-resize" role="separator" aria-label="Resize details sidebar" aria-orientation="vertical" aria-valuemin={sidebarLimits.right.min} aria-valuemax={sidebarLimits.right.max} aria-valuenow={rightSidebarWidth} tabIndex={0} style={{ right: rightSidebarWidth - 4 }} onPointerDown={event => startSidebarResize("right", event)} onPointerMove={moveSidebarResize} onPointerUp={stopSidebarResize} onPointerCancel={stopSidebarResize} onKeyDown={event => sidebarResizeKey("right", event)} />}
+      {rightSidebarOpen && <aside className="detail" id="details-sidebar" aria-label="Selected item details"><div className="detail-head">{selected ? `Selected ${selected.kind}` : "Details"}</div>{selected ? <>
         <div className="detail-icon">{selected.kind === "folder" ? "▱" : "↗"}</div><h2>{selected.name}</h2>{selected.kind === "bookmark" && <span className="detail-url">{selected.url}</span>}
         <div className="metadata"><div><span className="meta-label">Source</span><span className="meta-value"><span className="edge-icon">e</span> &nbsp;Microsoft Edge · {selected.source.profileName}</span></div><div><span className="meta-label">Full folder path</span><div className="path">{selectedPath.map(folder => <span key={folder.id}>{folder.name}</span>)}</div></div><div><span className="meta-label">Type</span><span className="meta-value">{selected.kind === "folder" ? "Folder" : "Bookmark"}</span></div></div>
         <div className="detail-actions"><button className="btn btn-primary" onClick={() => void openItem(selected)}>{selected.kind === "folder" ? "Open folder" : "Open in default browser"} ↗</button>{selected.kind === "bookmark" && <button className="btn" onClick={() => void copyItem(selected)}>Copy URL</button>}</div>
-      </> : <p className="detail-empty">Select a folder or bookmark to see its source and full path.</p>}<div className="read-only">Read only. Bookmarktivity does not change Edge bookmark files.</div></aside>
+      </> : <p className="detail-empty">Select a folder or bookmark to see its source and full path.</p>}<div className="read-only">Read only. Bookmarktivity does not change Edge bookmark files.</div></aside>}
       </div>
       <footer className="footer"><span>Enabled profiles only · Read-only Edge access</span><div className="shortcuts"><span><span className="key">{labelFor(bindings.results)}</span> Results</span><span><span className="key">← →</span> Folders</span><span><span className="key">Esc Esc</span> Reset</span><span><span className="key">{labelFor(bindings.copy)}</span> Copy URL</span></div></footer>
     </div>
-    {settingsOpen && <div className="modal-backdrop show" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="modal"><div className="modal-top"><div><h2 id="settings-title">Profiles & settings</h2><p>Choose the local Edge profiles included in this workspace. Changes only affect what Bookmarktivity displays.</p></div><button className="close" aria-label="Close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
+    {folderMenu && <div className="folder-context-menu" role="menu" aria-label={`Folder actions for ${folderMap.get(folderMenu.id)?.name || "selected folder"}`} ref={folderMenuRef} style={{ left: folderMenu.x, top: folderMenu.y }} onKeyDown={event => {
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+      event.preventDefault();
+      event.stopPropagation();
+      const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=menuitem]")];
+      const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
+      buttons[(index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
+    }}>
+      <button role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, false)}>Expand all <span className="key">{labelFor(expandBranchShortcut)}</span></button>
+      <button role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, true)}>Collapse all <span className="key">{labelFor(collapseBranchShortcut)}</span></button>
+    </div>}
+    {settingsOpen && <div className="modal-backdrop show" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="modal"><div className="modal-top"><div><h2 id="settings-title">Profiles & settings</h2><p>Choose your appearance and the local Edge profiles included in this workspace.</p></div><button className="close" aria-label="Close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
+      <div className="settings-section"><h3>Appearance</h3><fieldset className="theme-options" aria-label="Appearance"><label className={prefs.theme !== "dark" ? "selected" : ""}><input type="radio" name="theme" value="light" checked={prefs.theme !== "dark"} onChange={() => void saveTheme("light")} /><span>Light mode</span></label><label className={prefs.theme === "dark" ? "selected" : ""}><input type="radio" name="theme" value="dark" checked={prefs.theme === "dark"} onChange={() => void saveTheme("dark")} /><span>Dark mode</span></label></fieldset></div>
       <div className="settings-section"><h3>Microsoft Edge · Local profiles</h3><div className="directory-row"><label htmlFor="edge-dir">Edge user-data directory</label><div><input id="edge-dir" placeholder="Use system default" value={directoryDraft} onChange={event => setDirectoryDraft(event.target.value)} /><button className="btn" onClick={() => void findProfiles()} disabled={!inTauri}>Find profiles</button></div><small>For a custom Edge location, enter the user-data directory shown at edge://version.</small></div>
         {profiles.map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">e</span> &nbsp;{profile.name}</strong><small>Microsoft Edge · {profile.id}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
         {!profiles.length && <p className="settings-note">No profiles found yet. Check the directory and choose Find profiles.</p>}

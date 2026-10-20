@@ -5,12 +5,22 @@ use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, fs, path::PathBuf};
 
 #[derive(Default, Deserialize, Serialize)]
+#[serde(rename_all = "lowercase")]
+enum Theme {
+    #[default]
+    Light,
+    Dark,
+}
+
+#[derive(Default, Deserialize, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct Preferences {
     enabled_profile_ids: Vec<String>,
     edge_user_data_dir: Option<String>,
     #[serde(default)]
     shortcuts: HashMap<String, String>,
+    #[serde(default)]
+    theme: Theme,
 }
 
 fn preferences_path() -> Result<PathBuf, String> {

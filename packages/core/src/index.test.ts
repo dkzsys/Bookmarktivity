@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrangeTree, parseQuery, search, type Folder, type Bookmark, type SearchOptions } from "./index";
+import { arrangeTree, bookmarkCountsByFolder, folderBranchIds, parseQuery, search, type Folder, type Bookmark, type SearchOptions } from "./index";
 
 const work = { browserId: "edge", profileId: "Work", profileName: "Work" };
 const personal = { browserId: "edge", profileId: "Personal", profileName: "Personal" };
@@ -67,5 +67,16 @@ describe("search", () => {
   it("arranges and collapses visible tree rows", () => {
     const arranged = arrangeTree(items, new Set([research.id]));
     expect(arranged.visible.map(i => i.id)).toEqual([research.id, other.id, privateNote.id]);
+  });
+  it("counts bookmarks through each folder's subtree without crossing profiles", () => {
+    const counts = bookmarkCountsByFolder(items);
+    expect(counts.get(research.id)).toBe(2);
+    expect(counts.get(methods.id)).toBe(1);
+    expect(counts.get(other.id)).toBe(1);
+  });
+  it("collects only folders in a selected branch", () => {
+    const arranged = arrangeTree(items, new Set());
+    expect(folderBranchIds(arranged.children, research.id)).toEqual([research.id, methods.id]);
+    expect(folderBranchIds(arranged.children, other.id)).toEqual([other.id]);
   });
 });

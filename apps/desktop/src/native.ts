@@ -11,6 +11,7 @@ export interface Preferences {
   enabledProfileIds: string[];
   edgeUserDataDir: string | null;
   shortcuts?: Record<string, string>;
+  theme?: "light" | "dark";
 }
 export const inTauri = "__TAURI_INTERNALS__" in window;
 
