@@ -45,8 +45,8 @@ These illustrate desired behavior, not final parser syntax:
 
 ## Keyboard workflow
 
-- Global search: `Command+F` on macOS and `Ctrl+F` on Windows and Linux returns to **All bookmarks** across enabled profiles, clears the search-within-results filter, and focuses the primary search field. It retains the primary query and its field/mode choices so the user can revise them.
-- Search within results: `Option+F` on macOS and `Alt+F` on Windows and Linux focuses the refinement field without changing the current global query or folder scope.
+- Global search: `Command+F` on macOS and `Ctrl+F` on Windows and Linux returns to **All bookmarks** across enabled profiles, clears the search-within-results filter, scrolls to the primary search field, and focuses it. It retains the primary query and its field/mode choices so the user can revise them.
+- Search within results: `Option+F` on macOS and `Alt+F` on Windows and Linux scrolls to and focuses the refinement field without changing the current global query or folder scope.
 - Navigate to results: `Command+G` on macOS and `Alt+R` on Windows and Linux focuses the selected visible result, or the empty-results region when there is no result. It does not alter the query, scope, or enabled profiles.
 - Profiles & settings: `Command+,` on macOS and `Ctrl+,` on Windows and Linux opens the settings dialog.
 - Folder rows in every new result set start collapsed. Expanding a parent leaves its child folders collapsed.

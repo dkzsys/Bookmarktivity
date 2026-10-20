@@ -180,6 +180,7 @@ export default function App() {
   const [shortcutDraft, setShortcutDraft] = useState("");
   const shortcutCaptureRef = useRef<HTMLButtonElement>(null);
   const queryRef = useRef<HTMLInputElement>(null);
+  const mainRef = useRef<HTMLElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const resizing = useRef<{ side: SidebarSide; startX: number; startWidth: number } | null>(null);
@@ -546,6 +547,15 @@ export default function App() {
     queryRef.current?.focus();
     notify("Search and filters reset");
   };
+  const focusSearch = (field: "query" | "refine") => {
+    const input = field === "query" ? queryRef.current : refineRef.current;
+    if (field === "query") mainRef.current?.scrollTo({ top: 0, behavior: "auto" });
+    else input?.scrollIntoView({ block: "center", inline: "nearest", behavior: "auto" });
+    requestAnimationFrame(() => {
+      input?.focus({ preventScroll: true });
+      input?.select();
+    });
+  };
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -556,10 +566,10 @@ export default function App() {
       const chord = chordFor(event);
       if (chord === bindings.find) {
         event.preventDefault(); setSettingsOpen(false); setOptions(previous => ({ ...previous, scopeId: null, refine: "" }));
-        queryRef.current?.focus(); queryRef.current?.select(); return;
+        focusSearch("query"); return;
       }
       if (chord === bindings.refine) {
-        event.preventDefault(); setSettingsOpen(false); refineRef.current?.focus(); refineRef.current?.select(); return;
+        event.preventDefault(); setSettingsOpen(false); focusSearch("refine"); return;
       }
       if (chord === bindings.results) {
         event.preventDefault(); setSettingsOpen(false);
@@ -698,7 +708,7 @@ export default function App() {
       <div className="titlebar"><div className="breadcrumb"><span>Workspace</span><span>›</span><strong>{scopedFolder ? `${profileMap.get(scopedFolder.source.profileId)?.name} / ${folderPath(scopedFolder.id, folderMap).map(f => f.name).join(" / ")}` : "All bookmarks"}</strong></div>
         <div className="top-actions"><button className="btn sidebar-toggle" aria-controls={leftSidebarOpen ? "folder-sidebar" : undefined} aria-expanded={leftSidebarOpen} onClick={() => setLeftSidebarOpen(open => !open)}>{leftSidebarOpen ? "Hide folders" : "Show folders"}</button><button className="btn sidebar-toggle" aria-controls={rightSidebarOpen ? "details-sidebar" : undefined} aria-expanded={rightSidebarOpen} onClick={() => setRightSidebarOpen(open => !open)}>{rightSidebarOpen ? "Hide details" : "Show details"}</button><button className="btn sidebar-toggle" aria-pressed={showBookmarkCounts} onClick={() => setShowBookmarkCounts(show => !show)}>{showBookmarkCounts ? "Hide counts" : "Show counts"}</button><button className="btn" onClick={() => setSettingsOpen(true)}>⚙ &nbsp;Profiles & settings</button><div className="theme-toggle" role="group" aria-label="Appearance"><button type="button" aria-pressed={prefs.theme !== "dark"} className={prefs.theme !== "dark" ? "active" : ""} onClick={() => void saveTheme("light")}>☀ Light</button><button type="button" aria-pressed={prefs.theme === "dark"} className={prefs.theme === "dark" ? "active" : ""} onClick={() => void saveTheme("dark")}>☾ Dark</button></div></div>
       </div>
-      <div className="content" ref={contentRef} style={{ gridTemplateColumns: `minmax(0, 1fr) ${rightSidebarOpen ? rightSidebarWidth : 0}px` }}><main className="main">
+      <div className="content" ref={contentRef} style={{ gridTemplateColumns: `minmax(0, 1fr) ${rightSidebarOpen ? rightSidebarWidth : 0}px` }}><main className="main" ref={mainRef}>
         <header className="top">
           <div className="search-panel"><div className="search-row"><div className="search-wrap"><span className="search-icon">⌕</span><input ref={queryRef} type="search" aria-label="Search bookmarks" placeholder="Search by name, folder or URL…" value={options.query} onChange={event => updateOptions({ query: event.target.value })} /><span className="key">{labelFor(bindings.find)}</span></div><button className="btn btn-primary" onClick={() => queryRef.current?.focus()}>Search ↵</button></div>
             <div className="search-options"><span className="option-label">Search in</span>
