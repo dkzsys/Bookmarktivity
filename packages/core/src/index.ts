@@ -44,7 +44,9 @@ export interface SearchResult {
   items: Item[];
   matchedFolderIds: string[];
   error: string | null;
+  regexHighlights?: Map<string, Partial<Record<Field, MatchSpan[]>>>;
 }
+export type MatchSpan = readonly [number, number];
 
 type Term = { field: Field | null; value: string; quoted?: boolean };
 type Parsed = Term[][];
@@ -145,9 +147,20 @@ export function fuzzyWordMatch(word: string, query: string): boolean {
 function textMatches(haystack: string, term: Term): boolean {
   const text = haystack.toLocaleLowerCase();
   const needle = term.value.toLocaleLowerCase();
+  // Quoted text is a literal substring anywhere in the field, not a whole-field match.
   if (text.includes(needle)) return true;
   if (term.quoted || needle.length < 4) return false;
   return (text.match(/[\p{L}\p{N}]+/gu) || []).some(word => fuzzyWordMatch(word, needle));
+}
+
+function regexSpans(text: string, pattern: RegExp): MatchSpan[] {
+  const spans: MatchSpan[] = [];
+  for (const match of text.matchAll(new RegExp(pattern.source, "gi"))) {
+    if (!match[0].length) continue;
+    spans.push([match.index, match.index + match[0].length]);
+    if (spans.length === 24) break;
+  }
+  return spans;
 }
 
 function matches(item: Item, groups: Parsed, fields: Field[], folderMap: Map<string, Folder>): boolean {
@@ -234,9 +247,10 @@ export function search(allItems: Item[], options: SearchOptions): SearchResult {
   let primary: { items: Item[]; folderIds: string[] };
   let refined: { items: Item[]; folderIds: string[] };
   let groups: Parsed = [];
+  let regex: RegExp | null = null;
   try {
     if (options.regex && options.query.trim()) {
-      const re = new RegExp(options.query, "i");
+      const re = regex = new RegExp(options.query, "i");
       const folderIds = options.fields.length === 1 && options.fields[0] === "folder"
         ? items.filter((item): item is Folder => item.kind === "folder" && re.test(item.name)).map(item => item.id)
         : [];
@@ -270,7 +284,19 @@ export function search(allItems: Item[], options: SearchOptions): SearchResult {
     }
     return a.name.localeCompare(b.name) || a.source.profileId.localeCompare(b.source.profileId) || a.id.localeCompare(b.id);
   });
-  return { items, matchedFolderIds: [...new Set([...primary.folderIds, ...refined.folderIds])], error: null };
+  const regexHighlights = regex ? new Map<string, Partial<Record<Field, MatchSpan[]>>>() : undefined;
+  if (regex && regexHighlights) {
+    for (const item of items) {
+      const values = fieldsFor(item, folderMap);
+      const spans: Partial<Record<Field, MatchSpan[]>> = {};
+      for (const field of options.fields) {
+        const found = regexSpans(values[field], regex);
+        if (found.length) spans[field] = found;
+      }
+      if (Object.keys(spans).length) regexHighlights.set(item.id, spans);
+    }
+  }
+  return { items, matchedFolderIds: [...new Set([...primary.folderIds, ...refined.folderIds])], error: null, regexHighlights };
 }
 
 export function arrangeTree(items: Item[], collapsed: ReadonlySet<string>): { visible: (Item & { level: number })[]; children: Map<string, Item[]>; parents: Map<string, string | null> } {

@@ -23,7 +23,7 @@ Search must support these fields independently and in combination:
 - Bookmark name.
 - Bookmark URL.
 
-Users can search across all fields or restrict a search to any selection of those fields. The query language should support `folder:`, `name:`, and `url:` field prefixes; quoted phrases for exact text matching; `AND` and `OR`; and a regular-expression mode controlled by a toggle. Text matching is case-insensitive by default. The search UI should explain active fields and modes so a user can see what a query means.
+Users can search across all fields or restrict a search to any selection of those fields. The query language should support `folder:`, `name:`, and `url:` field prefixes; quoted phrases that match a literal substring anywhere within a field, including part of a word; `AND` and `OR`; and a regular-expression mode controlled by a toggle. Text matching is case-insensitive by default. The search UI should explain active fields and modes so a user can see what a query means.
 
 Folder scope must support both a selected folder **and its descendants** and a selected folder **only**. The `folder:` prefix matches folder names; the folder navigation controls search scope. The exact query syntax for descendants versus direct children remains to be defined. Search within the current result set must be possible, so a user can progressively narrow results without rebuilding the original query. A global search returns to **All bookmarks** across enabled profiles; a search within results retains the current query and scope.
 
@@ -37,7 +37,7 @@ These illustrate desired behavior, not final parser syntax:
 
 | Query or action | Intent |
 | --- | --- |
-| `name:"Project plan"` | Exact phrase in a bookmark name. |
+| `name:"Project plan"` | Match those words anywhere within a longer bookmark name. |
 | `url:docs.example.com AND name:guide` | Both conditions must match. |
 | `folder:Research` | Match the folder named Research. It starts collapsed; expanding it shows its bookmarks and subfolders, including nested contents. |
 | Search in results for `2026` | Narrow the current result set. |
@@ -47,7 +47,7 @@ These illustrate desired behavior, not final parser syntax:
 
 - Global search: `Command+F` on macOS and `Ctrl+F` on Windows and Linux returns to **All bookmarks** across enabled profiles, clears the search-within-results filter, and focuses the primary search field. It retains the primary query and its field/mode choices so the user can revise them.
 - Search within results: `Option+F` on macOS and `Alt+F` on Windows and Linux focuses the refinement field without changing the current global query or folder scope.
-- Navigate to results: `Option+R` on macOS and `Alt+R` on Windows and Linux focuses the selected visible result, or the empty-results region when there is no result. It does not alter the query, scope, or enabled profiles.
+- Navigate to results: `Command+G` on macOS and `Alt+R` on Windows and Linux focuses the selected visible result, or the empty-results region when there is no result. It does not alter the query, scope, or enabled profiles.
 - Profiles & settings: `Command+,` on macOS and `Ctrl+,` on Windows and Linux opens the settings dialog.
 - Folder rows in a new search result start collapsed, including when the query is a plain folder name. The user can expand them to inspect contents.
 - Pressing `Escape` twice in quick succession clears search queries, folder scope, field restrictions, regex mode, and result filtering; it restores the default sort and expanded result view. Enabled profile choices remain unchanged.
@@ -83,7 +83,7 @@ Keyboard navigation, selection, and shortcuts must work consistently across the 
 - Which of macOS, Windows, and Linux ship in the first release, and which browser integrations follow Edge.
 - Which subset of the search and keyboard workflow forms the first usable release.
 - Exact query grammar and precedence for prefixes, quotes, `AND`/`OR`, regex mode, and folder scope; how invalid expressions are reported.
-- Whether quoted text means an exact phrase or a full-field match, and how a folder name match interacts with folder scoping.
+- How a folder name match interacts with folder scoping.
 - Fuzzy ranking, “recent” data source, metadata availability across browsers, and fallback behavior for missing dates.
 - Whether bookmark data also refreshes automatically, how deleted or moved browser bookmarks are reflected after a re-read, and what measured performance would justify a local database.
 - How to discover and launch a preferred browser on each platform, including when it is unavailable.

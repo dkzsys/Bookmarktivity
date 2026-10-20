@@ -176,3 +176,7 @@ button:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 .result-list.virtual .result{margin:0}
 .shortcut-capture{border:1px solid #e0e3ee;border-radius:7px;background:#fff;color:#6b5cdf;padding:4px 8px;font-size:11px;font-weight:750}
 .shortcut-capture.capturing{border-color:#8e80ee;background:#f1eeff;color:#5849cc}
+.shortcut-editor{display:flex;align-items:end;gap:8px;padding:3px 0 12px;flex-wrap:wrap}
+.shortcut-editor label{display:grid;gap:5px;flex:1;min-width:165px;color:#838ba0;font-size:10px}
+.shortcut-editor input{width:100%;border:1px solid #dcddec;border-radius:7px;padding:7px 9px;color:#414860;font-size:11px}
+.shortcut-editor .btn{padding:7px 10px}

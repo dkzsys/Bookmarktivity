@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  arrangeTree, folderPath, fuzzyWordMatch, parseQuery, type Field, type Folder, type Item,
+  arrangeTree, folderPath, fuzzyWordMatch, parseQuery, type Field, type Folder, type Item, type MatchSpan,
   type ProfileData, type ScopeMode, type SearchOptions, type SearchResult, type Sort
 } from "@bookmarktivity/core";
 import { inTauri, native, type EdgeProfile, type Preferences } from "./native";
@@ -17,7 +17,7 @@ type ShortcutAction = "find" | "refine" | "results" | "copy" | "settings";
 const defaultBindings: Record<ShortcutAction, string> = {
   find: mac ? "Meta+F" : "Ctrl+F",
   refine: "Alt+F",
-  results: "Alt+R",
+  results: mac ? "Meta+G" : "Alt+R",
   copy: mac ? "Meta+C" : "Ctrl+C",
   settings: mac ? "Meta+," : "Ctrl+,"
 };
@@ -34,6 +34,22 @@ function chordFor(event: KeyboardEvent | React.KeyboardEvent): string | null {
     : event.code === "Comma" ? ","
     : event.key.length === 1 ? event.key.toUpperCase() : event.key;
   return [...modifiers, key].join("+");
+}
+function normalizeShortcut(input: string): string | null {
+  const parts = input.trim().split(/\s*\+\s*/);
+  if (parts.length < 2 || parts.some(part => !part)) return null;
+  const aliases: Record<string, string> = {
+    cmd: "Meta", command: "Meta", meta: "Meta", "⌘": "Meta",
+    ctrl: "Ctrl", control: "Ctrl", option: "Alt", opt: "Alt", alt: "Alt", "⌥": "Alt",
+    shift: "Shift", "⇧": "Shift"
+  };
+  const modifiers = parts.slice(0, -1).map(part => aliases[part.toLowerCase()]);
+  if (modifiers.some(part => !part) || new Set(modifiers).size !== modifiers.length || !modifiers.some(part => part !== "Shift")) return null;
+  const rawKey = parts.at(-1)!;
+  const namedKeys: Record<string, string> = { enter: "Enter", tab: "Tab", space: " ", escape: "Escape", backspace: "Backspace", delete: "Delete", arrowup: "ArrowUp", arrowdown: "ArrowDown", arrowleft: "ArrowLeft", arrowright: "ArrowRight" };
+  const key = rawKey.length === 1 ? rawKey.toUpperCase() : namedKeys[rawKey.toLowerCase()] || (/^f(?:[1-9]|1[0-2])$/i.test(rawKey) ? rawKey.toUpperCase() : null);
+  if (!key) return null;
+  return [...["Meta", "Ctrl", "Alt", "Shift"].filter(part => modifiers.includes(part)), key].join("+");
 }
 type SearchEnvelope = { id: number; result: SearchResult };
 
@@ -86,7 +102,20 @@ function useSearch(items: Item[], options: SearchOptions): SearchResult {
   return result;
 }
 
-function Highlight({ value, queries }: { value: string; queries: string[] }) {
+function Highlight({ value, queries, spans }: { value: string; queries: string[]; spans?: MatchSpan[] }) {
+  if (spans?.length) {
+    const parts: React.ReactNode[] = [];
+    let cursor = 0;
+    for (const [start, end] of [...spans].sort((a, b) => a[0] - b[0] || b[1] - a[1])) {
+      if (end <= cursor || start >= value.length) continue;
+      if (start > cursor) parts.push(<Highlight key={`text-${cursor}`} value={value.slice(cursor, start)} queries={queries} />);
+      const from = Math.max(start, cursor);
+      parts.push(<mark key={`mark-${from}`}>{value.slice(from, end)}</mark>);
+      cursor = end;
+    }
+    if (cursor < value.length) parts.push(<Highlight key={`text-${cursor}`} value={value.slice(cursor)} queries={queries} />);
+    return <>{parts}</>;
+  }
   let terms: { value: string; quoted?: boolean }[] = [];
   for (const query of queries) {
     try { terms.push(...parseQuery(query).flat()); } catch { /* error is shown in search */ }
@@ -124,6 +153,7 @@ export default function App() {
   const [toast, setToast] = useState("");
   const [directoryDraft, setDirectoryDraft] = useState("");
   const [capturingShortcut, setCapturingShortcut] = useState<ShortcutAction | null>(null);
+  const [shortcutDraft, setShortcutDraft] = useState("");
   const queryRef = useRef<HTMLInputElement>(null);
   const refineRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
@@ -307,30 +337,33 @@ export default function App() {
     } catch (error) { setStatus(String(error)); }
   };
 
-  const saveShortcuts = async (shortcuts: Record<string, string>) => {
+  const saveShortcuts = async (shortcuts: Record<string, string>): Promise<boolean> => {
     const next = { ...prefs, shortcuts };
     try {
       if (inTauri) await native.savePreferences(next);
       setPrefs(next);
-    } catch (error) { notify(String(error)); }
+      return true;
+    } catch (error) { notify(String(error)); return false; }
+  };
+  const applyShortcut = async (action: ShortcutAction, input: string) => {
+    const chord = normalizeShortcut(input);
+    if (!chord) { notify("Enter a shortcut such as Cmd+G or Ctrl+G."); return; }
+    const conflict = (Object.keys(bindings) as ShortcutAction[]).find(key => key !== action && bindings[key] === chord);
+    if (conflict) { notify(`That shortcut is already used for ${shortcutNames[conflict]}.`); return; }
+    if (await saveShortcuts({ ...prefs.shortcuts, [action]: chord })) {
+      setCapturingShortcut(null);
+      setShortcutDraft("");
+      notify(`${shortcutNames[action]} shortcut updated`);
+    }
   };
   const captureShortcut = async (action: ShortcutAction, event: React.KeyboardEvent<HTMLButtonElement>) => {
     event.preventDefault();
     event.stopPropagation();
+    if (event.key === "Escape") { setCapturingShortcut(null); setShortcutDraft(""); return; }
     const chord = chordFor(event);
     if (!chord) return;
-    if (!event.metaKey && !event.ctrlKey && !event.altKey) {
-      notify("Use Command, Control, or Alt with a key.");
-      return;
-    }
-    const conflict = (Object.keys(bindings) as ShortcutAction[]).find(key => key !== action && bindings[key] === chord);
-    if (conflict) {
-      notify(`That shortcut is already used for ${shortcutNames[conflict]}.`);
-      return;
-    }
-    await saveShortcuts({ ...prefs.shortcuts, [action]: chord });
-    setCapturingShortcut(null);
-    notify(`${shortcutNames[action]} shortcut updated`);
+    if (!event.metaKey && !event.ctrlKey && !event.altKey) { notify("Use Command, Control, or Alt with a key."); return; }
+    await applyShortcut(action, chord);
   };
 
   const focusResult = (id: string) => {
@@ -382,6 +415,10 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
+      if (capturingShortcut) {
+        if (event.key === "Escape") { event.preventDefault(); setCapturingShortcut(null); setShortcutDraft(""); }
+        return;
+      }
       const chord = chordFor(event);
       if (chord === bindings.find) {
         event.preventDefault(); setSettingsOpen(false); setOptions(previous => ({ ...previous, scopeId: null, refine: "" }));
@@ -524,7 +561,7 @@ export default function App() {
               <span className="syntax"><button className="inline-button" aria-expanded={syntaxOpen} onClick={() => setSyntaxOpen(!syntaxOpen)}>Syntax guide ↗</button></span>
             </div>
           </div>
-          {syntaxOpen && <div className="syntax-menu show"><strong>Query ideas</strong><p><code>name:"Project plan"</code> matches a phrase in a name.</p><p><code>url:docs.example.com AND name:guide</code> combines fields.</p><p><code>OR</code> broadens a query. <code>folder:</code> matches the immediate folder name. The folder list sets scope.</p><p>Regex mode treats the full primary query as an expression across the selected fields.</p></div>}
+          {syntaxOpen && <div className="syntax-menu show"><strong>Query ideas</strong><p><code>name:"Project plan"</code> matches that exact text anywhere inside a longer name, even mid-word.</p><p><code>url:docs.example.com AND name:guide</code> combines fields.</p><p><code>OR</code> broadens a query. <code>folder:</code> matches the immediate folder name. The folder list sets scope.</p><p>Regex mode treats the full primary query as an expression across the selected fields.</p></div>}
         </header>
         <div className="result-head"><div><h2>{options.query ? "Search results" : scopedFolder?.name || "All bookmarks"}</h2><div className="caption">{result.error || `${result.items.length} matching items · ${visible.length} visible · Folders first`}</div></div>
           <div className="result-tools"><div className="reread-control"><button className="btn" disabled={busy || !enabled.length || !inTauri} onClick={() => void refresh(enabled, "All enabled sources")}>↻ &nbsp;{busy ? "Re-reading…" : "Re-read all sources"}</button><button className="btn" disabled={!enabled.length} aria-label="Choose re-read target" aria-expanded={refreshOpen} onClick={() => setRefreshOpen(!refreshOpen)}>▾</button>
@@ -544,12 +581,21 @@ export default function App() {
               const expanded = !collapsedResults.has(item.id);
               const path = folderPath(item.parentId, folderMap).map(f => f.name).join(" / ");
               const sub = isFolder ? path || "Top level folder" : `${path} · ${item.url}`;
+              const textQueries = options.regex ? [options.refine] : [options.query, options.refine];
+              const regexMatch = options.regex ? result.regexHighlights?.get(item.id) : undefined;
+              const titleSpans: MatchSpan[] = [...(regexMatch?.name || []), ...(isFolder ? regexMatch?.folder || [] : [])];
+              const subSpans: MatchSpan[] = [];
+              if (!isFolder && regexMatch?.folder?.length) {
+                const parentName = folderMap.get(item.parentId || "")?.name || "";
+                if (parentName) for (const [start, end] of regexMatch.folder) subSpans.push([path.length - parentName.length + start, path.length - parentName.length + end]);
+              }
+              if (!isFolder && regexMatch?.url?.length) for (const [start, end] of regexMatch.url) subSpans.push([sub.length - item.url.length + start, sub.length - item.url.length + end]);
               return <button className={`result ${selected?.id === item.id ? "selected" : ""}`} key={item.id}
                 role="treeitem" aria-level={item.level} aria-expanded={isFolder && childCount ? expanded : undefined} aria-selected={selected?.id === item.id}
                 data-result-id={item.id} style={virtual ? { position: "absolute", top: (firstVisible + offset) * rowHeight, width: "100%", height: 68, paddingLeft: 13 + (item.level - 1) * 19 } : { paddingLeft: 13 + (item.level - 1) * 19 }}
                 onClick={event => { setSelectedId(item.id); if ((event.target as HTMLElement).closest("[data-result-branch]") && isFolder && childCount) setResultCollapsed(item.id, expanded); focusResult(item.id); }}
                 onDoubleClick={() => { setSelectedId(item.id); void openItem(item); }}>
-                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Chevron /></span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={options.regex ? [options.refine] : [options.query, options.refine]} /></span><span className="item-sub"><Highlight value={sub} queries={options.regex ? [options.refine] : [options.query, options.refine]} /></span></span><span className="source">Edge · {item.source.profileName}</span>
+                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Chevron /></span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={textQueries} spans={titleSpans} /></span><span className="item-sub"><Highlight value={sub} queries={textQueries} spans={subSpans} /></span></span><span className="source">Edge · {item.source.profileName}</span>
               </button>;
             })}
             </div>
@@ -569,10 +615,13 @@ export default function App() {
         {profiles.map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">e</span> &nbsp;{profile.name}</strong><small>Microsoft Edge · {profile.id}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
         {!profiles.length && <p className="settings-note">No profiles found yet. Check the directory and choose Find profiles.</p>}
       </div><div className="settings-section"><h3>Keyboard shortcuts</h3>
-        {(Object.keys(shortcutNames) as ShortcutAction[]).map(action => <div className="shortcut-line" key={action}><span>{shortcutNames[action]}</span><button className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => setCapturingShortcut(action)} onKeyDown={event => { if (capturingShortcut === action) void captureShortcut(action, event); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>)}
+        {(Object.keys(shortcutNames) as ShortcutAction[]).map(action => <div key={action}>
+          <div className="shortcut-line"><span>{shortcutNames[action]}</span><button className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => { setCapturingShortcut(action); setShortcutDraft(bindings[action]); }} onKeyDown={event => { if (capturingShortcut === action) void captureShortcut(action, event); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>
+          {capturingShortcut === action && <div className="shortcut-editor"><label>Or type a shortcut<input aria-label={`${shortcutNames[action]} shortcut`} value={shortcutDraft} onChange={event => setShortcutDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void applyShortcut(action, shortcutDraft); } }} placeholder={mac ? "Cmd+G" : "Ctrl+G"} /></label><button className="btn" onClick={() => void applyShortcut(action, shortcutDraft)}>Save</button><button className="btn" onClick={() => { setCapturingShortcut(null); setShortcutDraft(""); }}>Cancel</button></div>}
+        </div>)}
         <div className="shortcut-line"><span>Reset filters</span><span className="key">Esc Esc</span></div>
         <div className="shortcut-line"><span>Open selected item</span><span className="key">Enter</span></div>
-        <button className="inline-button" onClick={() => { void saveShortcuts({}); setCapturingShortcut(null); }}>Restore defaults</button>
+        <button className="inline-button" onClick={() => { void saveShortcuts({}); setCapturingShortcut(null); setShortcutDraft(""); }}>Restore defaults</button>
       </div>
     </div></div>}
     {toast && <div className="toast show" role="status">{toast}</div>}

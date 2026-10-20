@@ -51,6 +51,19 @@ describe("search", () => {
     expect(run({ query: "name:Indax" }).items.map(i => i.id)).toEqual([paper.id]);
     expect(run({ query: 'name:"Indax paper"' }).items).toHaveLength(0);
   });
+  it("matches quoted text anywhere within a field, including part of a word", () => {
+    expect(run({ query: 'name:"DEX PAP"' }).items.map(i => i.id)).toEqual([paper.id]);
+    expect(run({ query: 'name:"search BO"' }).items.map(i => i.id)).toEqual([board.id]);
+    expect(run({ query: 'url:"AMPLE.COM/IND"' }).items.map(i => i.id)).toEqual([paper.id]);
+  });
+  it("returns regex highlight positions for visible matching fields", () => {
+    const nameMatch = run({ query: "index", regex: true, fields: ["name"] });
+    expect(nameMatch.regexHighlights?.get(paper.id)?.name).toEqual([[0, 5]]);
+    const folderMatch = run({ query: "research", regex: true, fields: ["folder"] });
+    expect(folderMatch.regexHighlights?.get(board.id)?.folder).toEqual([[0, 8]]);
+    const urlMatch = run({ query: "papers\\.example", regex: true, fields: ["url"] });
+    expect(urlMatch.regexHighlights?.get(paper.id)?.url).toEqual([[8, 22]]);
+  });
   it("arranges and collapses visible tree rows", () => {
     const arranged = arrangeTree(items, new Set([research.id]));
     expect(arranged.visible.map(i => i.id)).toEqual([research.id, other.id, privateNote.id]);
