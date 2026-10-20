@@ -178,6 +178,7 @@ export default function App() {
   const [directoryDraft, setDirectoryDraft] = useState("");
   const [capturingShortcut, setCapturingShortcut] = useState<ShortcutAction | null>(null);
   const [shortcutDraft, setShortcutDraft] = useState("");
+  const shortcutCaptureRef = useRef<HTMLButtonElement>(null);
   const queryRef = useRef<HTMLInputElement>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
@@ -434,7 +435,7 @@ export default function App() {
       notify(`${shortcutNames[action]} shortcut updated`);
     }
   };
-  const captureShortcut = async (action: ShortcutAction, event: React.KeyboardEvent<HTMLButtonElement>) => {
+  const captureShortcut = async (action: ShortcutAction, event: KeyboardEvent) => {
     event.preventDefault();
     event.stopPropagation();
     if (event.key === "Escape") { setCapturingShortcut(null); setShortcutDraft(""); return; }
@@ -443,6 +444,19 @@ export default function App() {
     if (!event.metaKey && !event.ctrlKey && !event.altKey) { notify("Use Command, Control, or Alt with a key."); return; }
     await applyShortcut(action, chord);
   };
+  useEffect(() => {
+    if (!capturingShortcut) return;
+    const focus = requestAnimationFrame(() => shortcutCaptureRef.current?.focus());
+    const record = (event: KeyboardEvent) => {
+      if ((event.target as HTMLElement).closest(".shortcut-editor")) return;
+      void captureShortcut(capturingShortcut, event);
+    };
+    document.addEventListener("keydown", record, true);
+    return () => {
+      cancelAnimationFrame(focus);
+      document.removeEventListener("keydown", record, true);
+    };
+  }, [capturingShortcut, prefs.shortcuts]);
 
   const focusResult = (id: string) => {
     const index = visible.findIndex(item => item.id === id);
@@ -773,7 +787,7 @@ export default function App() {
       </div></div>}
       {settingsTab === "shortcuts" && <div id="settings-panel-shortcuts" role="tabpanel" aria-labelledby="settings-tab-shortcuts" className="settings-panel" tabIndex={0}><div className="settings-section"><h3>Keyboard shortcuts</h3>
         {(Object.keys(shortcutNames) as ShortcutAction[]).map(action => <div key={action}>
-          <div className="shortcut-line"><span>{shortcutNames[action]}</span><button className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => { setCapturingShortcut(action); setShortcutDraft(bindings[action]); }} onKeyDown={event => { if (capturingShortcut === action) void captureShortcut(action, event); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>
+          <div className="shortcut-line"><span>{shortcutNames[action]}</span><button ref={capturingShortcut === action ? shortcutCaptureRef : undefined} className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => { setCapturingShortcut(action); setShortcutDraft(bindings[action]); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>
           {capturingShortcut === action && <div className="shortcut-editor"><label>Or type a shortcut<input aria-label={`${shortcutNames[action]} shortcut`} value={shortcutDraft} onChange={event => setShortcutDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void applyShortcut(action, shortcutDraft); } }} placeholder={mac ? "Cmd+G" : "Ctrl+G"} /></label><button className="btn" onClick={() => void applyShortcut(action, shortcutDraft)}>Save</button><button className="btn" onClick={() => { setCapturingShortcut(null); setShortcutDraft(""); }}>Cancel</button></div>}
         </div>)}
         <div className="shortcut-line"><span>Reset filters</span><span className="key">Esc Esc</span></div>
