@@ -15,6 +15,7 @@ dist/
 build/
 target/
 coverage/
+releases/*/artifacts/
 
 # Real browser data must not be committed
 User Data/

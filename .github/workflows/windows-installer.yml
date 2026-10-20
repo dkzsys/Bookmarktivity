@@ -1,0 +1,40 @@
+name: Unsigned Windows test installer
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install JavaScript dependencies
+        run: npm ci
+
+      - name: Test browser-independent behavior
+        run: npm test
+
+      - name: Check desktop types
+        run: npm run typecheck
+
+      - name: Test Edge adapter
+        run: cargo test --manifest-path packages/browser-edge/Cargo.toml
+
+      - name: Build NSIS installer
+        run: npm run tauri -w @bookmarktivity/desktop -- build --bundles nsis
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: Bookmarktivity-Windows-x64-UNSIGNED-test-installer
+          path: apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe
+          if-no-files-found: error
