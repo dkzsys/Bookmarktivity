@@ -13,18 +13,19 @@ const defaultOptions: SearchOptions = {
   scopeId: null, scopeMode: "descendants", sort: "relevance"
 };
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
-type ShortcutAction = "find" | "refine" | "results" | "copy" | "settings";
+type ShortcutAction = "find" | "refine" | "results" | "copy" | "settings" | "expandAll" | "collapseAll";
 const defaultBindings: Record<ShortcutAction, string> = {
   find: mac ? "Meta+F" : "Ctrl+F",
   refine: "Alt+F",
   results: mac ? "Meta+G" : "Alt+R",
   copy: mac ? "Meta+C" : "Ctrl+C",
-  settings: mac ? "Meta+," : "Ctrl+,"
+  settings: mac ? "Meta+," : "Ctrl+,",
+  expandAll: mac ? "Meta+E" : "Ctrl+E",
+  collapseAll: mac ? "Meta+Shift+E" : "Ctrl+Shift+E"
 };
-const expandBranchShortcut = mac ? "Meta+E" : "Ctrl+E";
-const collapseBranchShortcut = mac ? "Meta+Shift+E" : "Ctrl+Shift+E";
 const shortcutNames: Record<ShortcutAction, string> = {
-  find: "Global search", refine: "Search within results", results: "Navigate to results", copy: "Copy selected URL", settings: "Profiles & settings"
+  find: "Global search", refine: "Search within results", results: "Navigate to results", copy: "Copy selected URL", settings: "Profiles & settings",
+  expandAll: "Expand all in selected folder", collapseAll: "Collapse all in selected folder"
 };
 const labelFor = (binding: string) => binding.replace("Meta", "⌘").replace("Alt", mac ? "⌥" : "Alt").replace("Shift", "⇧").replaceAll("+", " ");
 const sidebarLimits = { left: { min: 170, max: 420, initial: 238 }, right: { min: 210, max: 500, initial: 302 } } as const;
@@ -166,6 +167,7 @@ export default function App() {
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => storedSidebarWidth("left"));
   const [rightSidebarWidth, setRightSidebarWidth] = useState(() => storedSidebarWidth("right"));
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"profiles" | "shortcuts">("profiles");
   const [syntaxOpen, setSyntaxOpen] = useState(false);
   const [refreshOpen, setRefreshOpen] = useState(false);
   const [folderMenu, setFolderMenu] = useState<FolderMenu | null>(null);
@@ -553,7 +555,7 @@ export default function App() {
       if (chord === bindings.settings) {
         event.preventDefault(); setSettingsOpen(true); return;
       }
-      if (!settingsOpen && (chord === expandBranchShortcut || chord === collapseBranchShortcut)) {
+      if (!settingsOpen && (chord === bindings.expandAll || chord === bindings.collapseAll)) {
         const target = event.target as HTMLElement;
         const navId = target.closest<HTMLElement>("[data-folder-id]")?.dataset.folderId;
         const resultId = target.closest<HTMLElement>("[data-result-id]")?.dataset.resultId;
@@ -562,7 +564,7 @@ export default function App() {
           : selected?.kind === "folder" ? { surface: "results" as const, id: selected.id } : null);
         if (branch) {
           event.preventDefault();
-          changeFolderBranch(branch.surface, branch.id, chord === collapseBranchShortcut);
+          changeFolderBranch(branch.surface, branch.id, chord === bindings.collapseAll);
           return;
         }
       }
@@ -680,7 +682,7 @@ export default function App() {
     {leftSidebarOpen && <div className="resize-handle left-resize" role="separator" aria-label="Resize folders sidebar" aria-orientation="vertical" aria-valuemin={sidebarLimits.left.min} aria-valuemax={sidebarLimits.left.max} aria-valuenow={leftSidebarWidth} tabIndex={0} style={{ left: leftSidebarWidth - 4 }} onPointerDown={event => startSidebarResize("left", event)} onPointerMove={moveSidebarResize} onPointerUp={stopSidebarResize} onPointerCancel={stopSidebarResize} onKeyDown={event => sidebarResizeKey("left", event)} />}
     <div className="workspace">
       <div className="titlebar"><div className="breadcrumb"><span>Workspace</span><span>›</span><strong>{scopedFolder ? `${profileMap.get(scopedFolder.source.profileId)?.name} / ${folderPath(scopedFolder.id, folderMap).map(f => f.name).join(" / ")}` : "All bookmarks"}</strong></div>
-        <div className="top-actions"><button className="btn sidebar-toggle" aria-controls={leftSidebarOpen ? "folder-sidebar" : undefined} aria-expanded={leftSidebarOpen} onClick={() => setLeftSidebarOpen(open => !open)}>{leftSidebarOpen ? "Hide folders" : "Show folders"}</button><button className="btn sidebar-toggle" aria-controls={rightSidebarOpen ? "details-sidebar" : undefined} aria-expanded={rightSidebarOpen} onClick={() => setRightSidebarOpen(open => !open)}>{rightSidebarOpen ? "Hide details" : "Show details"}</button><button className="btn sidebar-toggle" aria-pressed={showBookmarkCounts} onClick={() => setShowBookmarkCounts(show => !show)}>{showBookmarkCounts ? "Hide counts" : "Show counts"}</button><button className="btn" onClick={() => setSettingsOpen(true)}>⚙ &nbsp;Profiles & settings</button></div>
+        <div className="top-actions"><button className="btn sidebar-toggle" aria-controls={leftSidebarOpen ? "folder-sidebar" : undefined} aria-expanded={leftSidebarOpen} onClick={() => setLeftSidebarOpen(open => !open)}>{leftSidebarOpen ? "Hide folders" : "Show folders"}</button><button className="btn sidebar-toggle" aria-controls={rightSidebarOpen ? "details-sidebar" : undefined} aria-expanded={rightSidebarOpen} onClick={() => setRightSidebarOpen(open => !open)}>{rightSidebarOpen ? "Hide details" : "Show details"}</button><button className="btn sidebar-toggle" aria-pressed={showBookmarkCounts} onClick={() => setShowBookmarkCounts(show => !show)}>{showBookmarkCounts ? "Hide counts" : "Show counts"}</button><button className="btn" onClick={() => setSettingsOpen(true)}>⚙ &nbsp;Profiles & settings</button><div className="theme-toggle" role="group" aria-label="Appearance"><button type="button" aria-pressed={prefs.theme !== "dark"} className={prefs.theme !== "dark" ? "active" : ""} onClick={() => void saveTheme("light")}>☀ Light</button><button type="button" aria-pressed={prefs.theme === "dark"} className={prefs.theme === "dark" ? "active" : ""} onClick={() => void saveTheme("dark")}>☾ Dark</button></div></div>
       </div>
       <div className="content" ref={contentRef} style={{ gridTemplateColumns: `minmax(0, 1fr) ${rightSidebarOpen ? rightSidebarWidth : 0}px` }}><main className="main">
         <header className="top">
@@ -750,15 +752,26 @@ export default function App() {
       const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
       buttons[(index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
     }}>
-      <button role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, false)}>Expand all <span className="key">{labelFor(expandBranchShortcut)}</span></button>
-      <button role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, true)}>Collapse all <span className="key">{labelFor(collapseBranchShortcut)}</span></button>
+      <button role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, false)}>Expand all <span className="key">{labelFor(bindings.expandAll)}</span></button>
+      <button role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, true)}>Collapse all <span className="key">{labelFor(bindings.collapseAll)}</span></button>
     </div>}
-    {settingsOpen && <div className="modal-backdrop show" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="modal"><div className="modal-top"><div><h2 id="settings-title">Profiles & settings</h2><p>Choose your appearance and the local Edge profiles included in this workspace.</p></div><button className="close" aria-label="Close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
-      <div className="settings-section"><h3>Appearance</h3><fieldset className="theme-options" aria-label="Appearance"><label className={prefs.theme !== "dark" ? "selected" : ""}><input type="radio" name="theme" value="light" checked={prefs.theme !== "dark"} onChange={() => void saveTheme("light")} /><span>Light mode</span></label><label className={prefs.theme === "dark" ? "selected" : ""}><input type="radio" name="theme" value="dark" checked={prefs.theme === "dark"} onChange={() => void saveTheme("dark")} /><span>Dark mode</span></label></fieldset></div>
-      <div className="settings-section"><h3>Microsoft Edge · Local profiles</h3><div className="directory-row"><label htmlFor="edge-dir">Edge user-data directory</label><div><input id="edge-dir" placeholder="Use system default" value={directoryDraft} onChange={event => setDirectoryDraft(event.target.value)} /><button className="btn" onClick={() => void findProfiles()} disabled={!inTauri}>Find profiles</button></div><small>For a custom Edge location, enter the user-data directory shown at edge://version.</small></div>
+    {settingsOpen && <div className="modal-backdrop show" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="modal"><div className="modal-top"><div><h2 id="settings-title">Profiles & settings</h2><p>Choose which local profiles to include and customize keyboard shortcuts.</p></div><button className="close" aria-label="Close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
+      <div className="settings-tabs" role="tablist" aria-label="Settings sections" onKeyDown={event => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        const next = event.key === "Home" ? "profiles" : event.key === "End" ? "shortcuts" : settingsTab === "profiles" ? "shortcuts" : "profiles";
+        setSettingsTab(next);
+        setCapturingShortcut(null);
+        event.currentTarget.querySelector<HTMLElement>(`#settings-tab-${next}`)?.focus();
+      }}>
+        <button id="settings-tab-profiles" type="button" role="tab" aria-selected={settingsTab === "profiles"} aria-controls="settings-panel-profiles" tabIndex={settingsTab === "profiles" ? 0 : -1} onClick={() => { setSettingsTab("profiles"); setCapturingShortcut(null); }}>Local bookmark profiles</button>
+        <button id="settings-tab-shortcuts" type="button" role="tab" aria-selected={settingsTab === "shortcuts"} aria-controls="settings-panel-shortcuts" tabIndex={settingsTab === "shortcuts" ? 0 : -1} onClick={() => setSettingsTab("shortcuts")}>Keyboard shortcuts</button>
+      </div>
+      {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}><div className="settings-section"><h3>Microsoft Edge · Local profiles</h3><div className="directory-row"><label htmlFor="edge-dir">Edge user-data directory</label><div><input id="edge-dir" placeholder="Use system default" value={directoryDraft} onChange={event => setDirectoryDraft(event.target.value)} /><button className="btn" onClick={() => void findProfiles()} disabled={!inTauri}>Find profiles</button></div><small>For a custom Edge location, enter the user-data directory shown at edge://version.</small></div>
         {profiles.map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">e</span> &nbsp;{profile.name}</strong><small>Microsoft Edge · {profile.id}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
         {!profiles.length && <p className="settings-note">No profiles found yet. Check the directory and choose Find profiles.</p>}
-      </div><div className="settings-section"><h3>Keyboard shortcuts</h3>
+      </div></div>}
+      {settingsTab === "shortcuts" && <div id="settings-panel-shortcuts" role="tabpanel" aria-labelledby="settings-tab-shortcuts" className="settings-panel" tabIndex={0}><div className="settings-section"><h3>Keyboard shortcuts</h3>
         {(Object.keys(shortcutNames) as ShortcutAction[]).map(action => <div key={action}>
           <div className="shortcut-line"><span>{shortcutNames[action]}</span><button className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => { setCapturingShortcut(action); setShortcutDraft(bindings[action]); }} onKeyDown={event => { if (capturingShortcut === action) void captureShortcut(action, event); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>
           {capturingShortcut === action && <div className="shortcut-editor"><label>Or type a shortcut<input aria-label={`${shortcutNames[action]} shortcut`} value={shortcutDraft} onChange={event => setShortcutDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void applyShortcut(action, shortcutDraft); } }} placeholder={mac ? "Cmd+G" : "Ctrl+G"} /></label><button className="btn" onClick={() => void applyShortcut(action, shortcutDraft)}>Save</button><button className="btn" onClick={() => { setCapturingShortcut(null); setShortcutDraft(""); }}>Cancel</button></div>}
@@ -766,7 +779,7 @@ export default function App() {
         <div className="shortcut-line"><span>Reset filters</span><span className="key">Esc Esc</span></div>
         <div className="shortcut-line"><span>Open selected item</span><span className="key">Enter</span></div>
         <button className="inline-button" onClick={() => { void saveShortcuts({}); setCapturingShortcut(null); setShortcutDraft(""); }}>Restore defaults</button>
-      </div>
+      </div></div>}
     </div></div>}
     {toast && <div className="toast show" role="status">{toast}</div>}
   </div>;

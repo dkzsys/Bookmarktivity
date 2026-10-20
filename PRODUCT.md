@@ -8,7 +8,7 @@ Bookmarktivity combines **bookmarks** and **productivity**. It is a standalone d
 
 - The app is standalone, not a browser extension. It targets macOS, Windows, and Linux; which platforms ship in the first release remains open.
 - Microsoft Edge is the first browser integration. The design must allow additional local browser integrations later.
-- Users configure browsers and select individual local profiles in Settings. Only enabled profiles appear in the workspace or search results.
+- Users select individual local profiles in the first Settings tab. Only enabled profiles appear in the workspace or search results. The second Settings tab contains keyboard shortcuts, while the main toolbar contains the light/dark appearance toggle.
 - The app reads bookmarks directly from enabled local browser profiles. Initial access is read-only; editing browser data requires a separate, tested design.
 - On launch, the app rebuilds its bookmark model and search data in memory from enabled profiles. It does not persist a separate bookmark database initially; revisit a local database if measured performance falls short of expectations.
 - Users can manually re-read bookmarks from all enabled sources, one browser source, or one enabled profile. A source-level re-read covers only its enabled profiles; disabled profiles are not read. Re-reading updates only the targeted derived data without writing to browser profiles, reapplies the current query and scope, and reports per-profile read failures without showing stale data as newly refreshed.
@@ -50,7 +50,7 @@ These illustrate desired behavior, not final parser syntax:
 - Navigate to results: `Command+G` on macOS and `Alt+R` on Windows and Linux focuses the selected visible result, or the empty-results region when there is no result. It does not alter the query, scope, or enabled profiles.
 - Profiles & settings: `Command+,` on macOS and `Ctrl+,` on Windows and Linux opens the settings dialog.
 - Folder rows in every new result set start collapsed. Expanding a parent leaves its child folders collapsed.
-- `Command+E` / `Command+Shift+E` on macOS, or `Ctrl+E` / `Ctrl+Shift+E` on Windows and Linux, expands or collapses the focused folder and all of its descendants. The same actions are available from a folder's context menu.
+- `Command+E` / `Command+Shift+E` on macOS, or `Ctrl+E` / `Ctrl+Shift+E` on Windows and Linux, expands or collapses the focused folder and all of its descendants. The same actions are available from a folder's context menu. Both shortcuts can be reassigned in Settings.
 - Pressing `Escape` twice in quick succession clears search queries, folder scope, field restrictions, regex mode, and result filtering; it restores the default sort and collapsed result view. Enabled profile choices remain unchanged.
 - In **Your Folders**, Up/Down move through visible folders, Right expands a collapsed branch or moves to its first child, and Left collapses an expanded branch or moves to its parent. The section itself is a keyboard-operable disclosure.
 - In search results, Up/Down move through visible results. Right expands a selected folder and Left collapses it; when already expanded or collapsed, the respective arrow moves to its first visible child or parent where available. Tab and Shift+Tab move through interactive controls with visible focus.
