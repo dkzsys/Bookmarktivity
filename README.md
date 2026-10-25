@@ -16,6 +16,7 @@ Microsoft Edge, Google Chrome, and Brave are local browser sources. Users choose
 - **Build layered filters:** run a primary query, then use **Search within results** to narrow that result set while retaining the original query and folder scope. Active filters remain visible.
 - **Scope a search to a folder** and choose whether it includes descendants or only direct contents. Folder-name matching and folder scope are separate controls.
 - **Write expressive queries** with `name:`, `url:`, and `folder:` prefixes, quoted phrases, `AND`, and `OR`. Adjacent terms imply `AND`, and `AND` takes precedence over `OR`. Unquoted terms also allow nearby fuzzy word matches. A regular-expression toggle runs the full primary query in a time-limited worker.
+- **Search large collections** in a background worker. Text queries show progress until the latest search finishes; regex searches retain a short execution limit.
 - **Explore matching folders:** a standalone folder-name search finds folders whose names match and lets you expand their contents, even when a child item does not match the folder name. Other search modes show matching items only.
 - **Sort and scan results** by relevance or alphabetically, with created and modified date options when source metadata supports them. Matching text is highlighted in the results.
 

@@ -67,54 +67,79 @@ function normalizeShortcut(input: string): string | null {
   return [...["Meta", "Ctrl", "Alt", "Shift"].filter(part => modifiers.includes(part)), key].join("+");
 }
 type SearchEnvelope = { id: number; result: SearchResult };
+const emptySearchResult: SearchResult = { items: [], matchedFolderIds: [], error: null };
 
-function useSearch(items: Item[], options: SearchOptions): SearchResult {
-  const [result, setResult] = useState<SearchResult>({ items: [], matchedFolderIds: [], error: null });
+function useSearch(items: Item[], options: SearchOptions): { result: SearchResult; searching: boolean } {
+  const [result, setResult] = useState<SearchResult>(emptySearchResult);
+  const [searching, setSearching] = useState(false);
+  const requested = useRef<{ items: Item[]; options: SearchOptions } | null>(null);
   const worker = useRef<Worker | null>(null);
   const serial = useRef(0);
   const timer = useRef<number | null>(null);
-  const previousWasRegex = useRef(false);
+  const debounce = useRef<number | null>(null);
+  const running = useRef(false);
   const createWorker = useCallback(() => {
     const instance = new Worker(new URL("./search.worker.ts", import.meta.url), { type: "module" });
     instance.onmessage = (event: MessageEvent<SearchEnvelope>) => {
-      if (event.data.id !== serial.current) return;
+      if (instance !== worker.current || event.data.id !== serial.current) return;
+      running.current = false;
       if (timer.current) window.clearTimeout(timer.current);
       setResult(event.data.result);
+      setSearching(false);
     };
     instance.onerror = () => {
+      if (instance !== worker.current) return;
+      running.current = false;
       if (timer.current) window.clearTimeout(timer.current);
       setResult({ items: [], matchedFolderIds: [], error: "Search could not complete." });
+      setSearching(false);
     };
     instance.postMessage({ type: "data", items });
     return instance;
   }, [items]);
   useEffect(() => {
     worker.current?.terminate();
+    running.current = false;
     worker.current = createWorker();
     return () => {
       if (timer.current) window.clearTimeout(timer.current);
+      if (debounce.current) window.clearTimeout(debounce.current);
       worker.current?.terminate();
       worker.current = null;
     };
   }, [createWorker]);
   useEffect(() => {
     const id = ++serial.current;
-    if (previousWasRegex.current) {
+    requested.current = { items, options };
+    if (debounce.current) window.clearTimeout(debounce.current);
+    if (running.current) {
       worker.current?.terminate();
       worker.current = createWorker();
+      running.current = false;
     }
-    previousWasRegex.current = options.regex && Boolean(options.query.trim());
     if (timer.current) window.clearTimeout(timer.current);
-    worker.current?.postMessage({ type: "search", id, options });
-    timer.current = window.setTimeout(() => {
-      if (id !== serial.current) return;
-      worker.current?.terminate();
-      worker.current = createWorker();
-      setResult({ items: [], matchedFolderIds: [], error: "Search took too long. Try a narrower expression." });
-    }, options.regex ? 350 : 3000);
-    return () => { if (timer.current) window.clearTimeout(timer.current); };
-  }, [createWorker, options]);
-  return result;
+    setResult(emptySearchResult);
+    setSearching(true);
+    debounce.current = window.setTimeout(() => {
+      running.current = true;
+      worker.current?.postMessage({ type: "search", id, options });
+      if (options.regex && options.query.trim()) timer.current = window.setTimeout(() => {
+        if (id !== serial.current) return;
+        worker.current?.terminate();
+        worker.current = createWorker();
+        running.current = false;
+        setResult({ items: [], matchedFolderIds: [], error: "Regex search took too long. Try a narrower expression." });
+        setSearching(false);
+      }, 350);
+    }, 120);
+    return () => {
+      if (debounce.current) window.clearTimeout(debounce.current);
+      if (timer.current) window.clearTimeout(timer.current);
+    };
+  }, [createWorker, items, options]);
+  return requested.current?.items === items && requested.current.options === options
+    ? { result, searching }
+    : { result: emptySearchResult, searching: true };
 }
 
 function Highlight({ value, queries, spans }: { value: string; queries: string[]; spans?: MatchSpan[] }) {
@@ -260,7 +285,7 @@ export default function App() {
   }, [allItems]);
   const profileMap = useMemo(() => new Map(profiles.map(profile => [profile.id, profile])), [profiles]);
   const snapshotWarnings = useMemo(() => enabled.filter(profile => Boolean(data[profile.id]?.warning)), [enabled, data]);
-  const result = useSearch(allItems, options);
+  const { result, searching } = useSearch(allItems, options);
   useLayoutEffect(() => {
     setCollapsedResults(new Set(result.items.filter(item => item.kind === "folder").map(item => item.id)));
   }, [result.items]);
@@ -725,7 +750,7 @@ export default function App() {
       </div>
       <div className="content" ref={contentRef} style={{ gridTemplateColumns: `minmax(0, 1fr) ${rightSidebarOpen ? rightSidebarWidth : 0}px` }}><main className="main" ref={mainRef}>
         <header className="top">
-          <div className="search-panel"><div className="search-row"><div className="search-wrap"><span className="search-icon">⌕</span><input ref={queryRef} type="search" aria-label="Search bookmarks" placeholder="Search by name, folder or URL…" value={options.query} onChange={event => updateOptions({ query: event.target.value })} /><span className="key">{labelFor(bindings.find)}</span></div><button className="btn btn-primary" onClick={() => queryRef.current?.focus()}>Search ↵</button></div>
+          <div className="search-panel"><div className="search-row"><div className="search-wrap"><span className="search-icon">⌕</span><input ref={queryRef} type="search" aria-label="Search bookmarks" autoCorrect="off" placeholder="Search by name, folder or URL…" value={options.query} onChange={event => updateOptions({ query: event.target.value })} /><span className="key">{labelFor(bindings.find)}</span></div><button className="btn btn-primary" onClick={() => queryRef.current?.focus()}>Search ↵</button></div>
             <div className="search-options"><span className="option-label">Search in</span>
               {(["name", "url", "folder"] as Field[]).map(field => <label className="check" key={field}><input type="checkbox" checked={options.fields.includes(field)} onChange={event => updateOptions({ fields: event.target.checked ? [...options.fields, field] : options.fields.filter(value => value !== field) })} />{field === "folder" ? "Folder name" : field === "url" ? "URL" : "Name"}</label>)}
               <span className="divider" /><label className="check"><input type="checkbox" checked={options.regex} onChange={event => updateOptions({ regex: event.target.checked })} />Regex</label>
@@ -734,7 +759,7 @@ export default function App() {
           </div>
           {syntaxOpen && <div className="syntax-menu show"><strong>Query ideas</strong><p><code>name:"Project plan"</code> matches that exact text anywhere inside a longer name, even mid-word.</p><p><code>url:docs.example.com AND name:guide</code> combines fields.</p><p><code>OR</code> broadens a query. <code>folder:</code> matches the immediate folder name. The folder list sets scope.</p><p>Regex mode treats the full primary query as an expression across the selected fields.</p></div>}
         </header>
-        <div className="result-head"><div><h2>{options.query ? "Search results" : scopedFolder?.name || "All bookmarks"}</h2><div className="caption">{result.error || `${result.items.length} matching items · ${visible.length} visible · Folders first`}</div></div>
+        <div className="result-head"><div><h2>{options.query ? "Search results" : scopedFolder?.name || "All bookmarks"}</h2><div className="caption">{searching ? "Searching bookmarks…" : result.error || `${result.items.length} matching items · ${visible.length} visible · Folders first`}</div></div>
           <div className="result-tools"><div className="reread-control"><button className="btn" disabled={busy || !enabled.length || !inTauri} onClick={() => void refresh(enabled, "All enabled sources")}>↻ &nbsp;{busy ? "Re-reading…" : "Re-read all sources"}</button><button className="btn" disabled={!enabled.length} aria-label="Choose re-read target" aria-expanded={refreshOpen} onClick={() => setRefreshOpen(!refreshOpen)}>▾</button>
             {refreshOpen && <div className="reread-menu"><div className="reread-menu-label">By source</div>{browserIds.map(browserId => {
               const targets = enabled.filter(profile => profile.browserId === browserId);
@@ -744,9 +769,9 @@ export default function App() {
         </div>
         <div className="source-status" role="status">{status}{Object.entries(errors).map(([id, error]) => <div key={id}>{profileMap.get(id) ? `${browserNames[profileMap.get(id)!.browserId]} · ${profileMap.get(id)!.name}` : id}: {error}</div>)}{snapshotWarnings.map(profile => <div className="source-warning" key={profile.id}>{browserNames[profile.browserId]} · {profile.name}: {data[profile.id].warning}</div>)}</div>
         <div className="active-bar"><span className="chip blue">{enabled.length} enabled {enabled.length === 1 ? "profile" : "profiles"}</span>{snapshotWarnings.length > 0 && <span className="chip">{snapshotWarnings.length} possibly stale {snapshotWarnings.length === 1 ? "profile" : "profiles"}</span>}{scopedFolder && <span className="chip">{scopedFolder.name} · {options.scopeMode === "direct" ? "direct only" : "with descendants"}</span>}{options.query && <span className="chip">Query: {options.query}</span>}{options.refine && <span className="chip">Within results: {options.refine}</span>}{result.matchedFolderIds.length > 0 && <span className="chip">Folder matches include contents</span>}<span className="chip">{options.regex ? "Regex mode" : `Fields: ${options.fields.join(", ") || "none"}`}</span></div>
-        <label className="refine"><span>⌕</span><input ref={refineRef} type="search" aria-label="Search within results" placeholder="Search within these results…" value={options.refine} onChange={event => updateOptions({ refine: event.target.value })} /><span className="key">{labelFor(bindings.refine)}</span></label>
-        <div className={`result-list ${virtual ? "virtual" : ""}`} role="tree" aria-label="Search results" tabIndex={0} ref={resultsRef} onScroll={event => setResultScroll(event.currentTarget.scrollTop)}>
-          {!visible.length ? <div className="empty"><strong>{result.error ? "Check the search query" : enabled.length ? "No matches in this scope" : "Choose a browser profile"}</strong>{result.error || (enabled.length ? "Try another query, field, folder, or enabled profile." : "Open Profiles & settings to include local bookmarks.")}</div> : <>
+        <label className="refine"><span>⌕</span><input ref={refineRef} type="search" aria-label="Search within results" autoCorrect="off" placeholder="Search within these results…" value={options.refine} onChange={event => updateOptions({ refine: event.target.value })} /><span className="key">{labelFor(bindings.refine)}</span></label>
+        <div className={`result-list ${virtual ? "virtual" : ""}`} role="tree" aria-label="Search results" aria-busy={searching} tabIndex={0} ref={resultsRef} onScroll={event => setResultScroll(event.currentTarget.scrollTop)}>
+          {!visible.length ? <div className="empty"><strong>{searching ? "Searching bookmarks" : result.error ? "Check the search query" : enabled.length ? "No matches in this scope" : "Choose a browser profile"}</strong>{searching ? "Checking the enabled profiles…" : result.error || (enabled.length ? "Try another query, field, folder, or enabled profile." : "Open Profiles & settings to include local bookmarks.")}</div> : <>
             <div className="list-head"><span>Item / location</span><span>Source</span></div>
             <div className={virtual ? "virtual-space" : "result-rows"} style={virtual ? { height: visible.length * rowHeight } : undefined}>
             {rendered.map((item, offset) => {
@@ -811,7 +836,7 @@ export default function App() {
       </div>
       {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}>
         {browserIds.map(browserId => <div className="settings-section" key={browserId}><h3>{browserNames[browserId]} · Local profiles</h3>
-          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} /><button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>For a custom location, enter the parent of the profile directory shown at {browserVersionPages[browserId]}.</small></div>
+          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} /><button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>For a custom location, enter the parent of the profile directory shown at {browserVersionPages[browserId]}.</small></div>
           {profiles.filter(profile => profile.browserId === browserId).map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">{browserId[0].toUpperCase()}</span> &nbsp;{profile.name}</strong><small>{browserNames[browserId]} · {profile.folderId}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
           {!profiles.some(profile => profile.browserId === browserId) && <p className="settings-note">No profiles found. Check the directory and choose Find profiles.</p>}
         </div>)}
@@ -819,7 +844,7 @@ export default function App() {
       {settingsTab === "shortcuts" && <div id="settings-panel-shortcuts" role="tabpanel" aria-labelledby="settings-tab-shortcuts" className="settings-panel" tabIndex={0}><div className="settings-section"><h3>Keyboard shortcuts</h3>
         {(Object.keys(shortcutNames) as ShortcutAction[]).map(action => <div key={action}>
           <div className="shortcut-line"><span>{shortcutNames[action]}</span><button ref={capturingShortcut === action ? shortcutCaptureRef : undefined} className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => { setCapturingShortcut(action); setShortcutDraft(bindings[action]); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>
-          {capturingShortcut === action && <div className="shortcut-editor"><label>Or type a shortcut<input aria-label={`${shortcutNames[action]} shortcut`} value={shortcutDraft} onChange={event => setShortcutDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void applyShortcut(action, shortcutDraft); } }} placeholder={mac ? "Cmd+G" : "Ctrl+G"} /></label><button className="btn" onClick={() => void applyShortcut(action, shortcutDraft)}>Save</button><button className="btn" onClick={() => { setCapturingShortcut(null); setShortcutDraft(""); }}>Cancel</button></div>}
+          {capturingShortcut === action && <div className="shortcut-editor"><label>Or type a shortcut<input aria-label={`${shortcutNames[action]} shortcut`} autoCorrect="off" value={shortcutDraft} onChange={event => setShortcutDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void applyShortcut(action, shortcutDraft); } }} placeholder={mac ? "Cmd+G" : "Ctrl+G"} /></label><button className="btn" onClick={() => void applyShortcut(action, shortcutDraft)}>Save</button><button className="btn" onClick={() => { setCapturingShortcut(null); setShortcutDraft(""); }}>Cancel</button></div>}
         </div>)}
         <div className="shortcut-line"><span>Reset filters</span><span className="key">Esc Esc</span></div>
         <div className="shortcut-line"><span>Open selected item</span><span className="key">Enter</span></div>

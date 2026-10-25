@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrangeTree, bookmarkCountsByFolder, folderBranchIds, parseQuery, search, type Folder, type Bookmark, type SearchOptions } from "./index";
+import { arrangeTree, bookmarkCountsByFolder, folderBranchIds, fuzzyWordMatch, parseQuery, search, type Folder, type Bookmark, type SearchOptions } from "./index";
 
 const work = { browserId: "edge", profileId: "Work", profileName: "Work" };
 const personal = { browserId: "edge", profileId: "Personal", profileName: "Personal" };
@@ -50,6 +50,23 @@ describe("search", () => {
   it("finds small typos while keeping quoted phrases literal", () => {
     expect(run({ query: "name:Indax" }).items.map(i => i.id)).toEqual([paper.id]);
     expect(run({ query: 'name:"Indax paper"' }).items).toHaveLength(0);
+    expect(fuzzyWordMatch("timezone", "timezome")).toBe(true);
+    expect(fuzzyWordMatch("timezone", "timexone")).toBe(true);
+    expect(fuzzyWordMatch("timezone", "unrelated")).toBe(false);
+  });
+  it("finds a Brave result at the end of a combined synthetic collection", () => {
+    const edge = { browserId: "edge", profileId: "edge-large", profileName: "Edge" };
+    const brave = { browserId: "brave", profileId: "brave-large", profileName: "Brave" };
+    const collection: Bookmark[] = Array.from({ length: 12_000 }, (_, index) => ({
+      kind: "bookmark", id: `bookmark-${index}`, parentId: null,
+      name: index === 11_999 ? "Online timezone converter" : `Reference article ${index}`,
+      url: `https://example.com/reference/article/${index}`,
+      source: index < 6_000 ? edge : brave
+    }));
+    const found = search(collection, { ...defaults, query: "online timezone" });
+    expect(found.error).toBeNull();
+    expect(found.items.map(item => item.id)).toEqual(["bookmark-11999"]);
+    expect(found.items[0].source.browserId).toBe("brave");
   });
   it("matches quoted text anywhere within a field, including part of a word", () => {
     expect(run({ query: 'name:"DEX PAP"' }).items.map(i => i.id)).toEqual([paper.id]);

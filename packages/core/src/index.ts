@@ -121,27 +121,33 @@ function fieldsFor(item: Item, folderMap: Map<string, Folder>): Record<Field, st
 
 function distanceWithin(a: string, b: string, limit: number): boolean {
   if (Math.abs(a.length - b.length) > limit) return false;
-  let previous = Array.from({ length: b.length + 1 }, (_, index) => index);
+  let previous = new Uint32Array(b.length + 1);
+  let current = new Uint32Array(b.length + 1);
+  for (let column = 0; column <= b.length; column++) previous[column] = column;
   for (let row = 1; row <= a.length; row++) {
-    const current = [row];
-    let minimum = row;
-    for (let column = 1; column <= b.length; column++) {
+    current.fill(limit + 1);
+    current[0] = row;
+    let minimum = limit + 1;
+    const first = Math.max(1, row - limit);
+    const last = Math.min(b.length, row + limit);
+    for (let column = first; column <= last; column++) {
       const cost = a[row - 1] === b[column - 1] ? 0 : 1;
       const value = Math.min(previous[column] + 1, current[column - 1] + 1, previous[column - 1] + cost);
-      current.push(value);
+      current[column] = value;
       minimum = Math.min(minimum, value);
     }
     if (minimum > limit) return false;
-    previous = current;
+    [previous, current] = [current, previous];
   }
   return previous[b.length] <= limit;
 }
 
+function fuzzyWordMatchNormalized(word: string, query: string): boolean {
+  return query.length >= 4 && distanceWithin(word, query, query.length >= 8 ? 2 : 1);
+}
+
 export function fuzzyWordMatch(word: string, query: string): boolean {
-  const left = word.toLocaleLowerCase();
-  const right = query.toLocaleLowerCase();
-  if (right.length < 4) return false;
-  return distanceWithin(left, right, right.length >= 8 ? 2 : 1);
+  return fuzzyWordMatchNormalized(word.toLocaleLowerCase(), query.toLocaleLowerCase());
 }
 
 function textMatches(haystack: string, term: Term): boolean {
@@ -150,7 +156,7 @@ function textMatches(haystack: string, term: Term): boolean {
   // Quoted text is a literal substring anywhere in the field, not a whole-field match.
   if (text.includes(needle)) return true;
   if (term.quoted || needle.length < 4) return false;
-  return (text.match(/[\p{L}\p{N}]+/gu) || []).some(word => fuzzyWordMatch(word, needle));
+  return (text.match(/[\p{L}\p{N}]+/gu) || []).some(word => fuzzyWordMatchNormalized(word, needle));
 }
 
 function regexSpans(text: string, pattern: RegExp): MatchSpan[] {
