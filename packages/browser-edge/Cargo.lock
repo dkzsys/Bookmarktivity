@@ -3,12 +3,19 @@
 version = 4
 
 [[package]]
+name = "browser-chromium"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "browser-edge"
 version = "0.3.0"
 dependencies = [
+ "browser-chromium",
  "dirs",
- "serde",
- "serde_json",
 ]
 
 [[package]]

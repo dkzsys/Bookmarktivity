@@ -1,15 +1,15 @@
 import type { ProfileData, Source } from "@bookmarktivity/core";
-import type { EdgeProfile } from "./native";
+import type { BrowserProfile } from "./native";
 
-export const sampleProfiles: EdgeProfile[] = [
-  { id: "sample-personal", name: "Personal", browserId: "edge", userDataDir: "" },
-  { id: "sample-work", name: "Work", browserId: "edge", userDataDir: "" },
-  { id: "sample-archive", name: "Archive", browserId: "edge", userDataDir: "" }
+export const sampleProfiles: BrowserProfile[] = [
+  { id: "sample-personal", folderId: "sample-personal", name: "Personal", browserId: "edge", userDataDir: "" },
+  { id: "sample-work", folderId: "sample-work", name: "Work", browserId: "chrome", userDataDir: "" },
+  { id: "sample-archive", folderId: "sample-archive", name: "Archive", browserId: "brave", userDataDir: "" }
 ];
-const source = (id: string, name: string): Source => ({ browserId: "edge", profileId: id, profileName: name });
-const work = source("sample-work", "Work");
-const personal = source("sample-personal", "Personal");
-const archive = source("sample-archive", "Archive");
+const source = (browserId: string, id: string, name: string): Source => ({ browserId, profileId: id, profileName: name });
+const work = source("chrome", "sample-work", "Work");
+const personal = source("edge", "sample-personal", "Personal");
+const archive = source("brave", "sample-archive", "Archive");
 
 export const sampleData: Record<string, ProfileData> = {
   "sample-work": {

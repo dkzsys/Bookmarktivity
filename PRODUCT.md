@@ -7,12 +7,12 @@ Bookmarktivity combines **bookmarks** and **productivity**. It is a standalone d
 ## Confirmed scope
 
 - The app is standalone, not a browser extension. It targets macOS, Windows, and Linux; which platforms ship in the first release remains open.
-- Microsoft Edge is the first browser integration. The design must allow additional local browser integrations later.
+- Microsoft Edge, Google Chrome, and Brave are local browser sources. The design must allow additional integrations later.
 - Users select individual local profiles in the first Settings tab. Only enabled profiles appear in the workspace or search results. The second Settings tab contains keyboard shortcuts, while the main toolbar contains the light/dark appearance toggle.
 - The app reads bookmarks directly from enabled local browser profiles. Initial access is read-only; editing browser data requires a separate, tested design.
 - On launch, the app rebuilds its bookmark model and search data in memory from enabled profiles. It does not persist a separate bookmark database initially; revisit a local database if measured performance falls short of expectations.
 - Users can manually re-read bookmarks from all enabled sources, one browser source, or one enabled profile. A source-level re-read covers only its enabled profiles; disabled profiles are not read. Re-reading updates only the targeted derived data without writing to browser profiles, reapplies the current query and scope, and reports per-profile read failures without showing stale data as newly refreshed.
-- A combined workspace can show bookmarks from multiple enabled profiles while keeping their browser and profile identities distinct. It does not merge profiles or sync data between them.
+- A combined workspace can show bookmarks from multiple enabled profiles while keeping their browser, user-data directory, and profile identities distinct. It does not merge profiles or sync data between them.
 - The project is open source under the MIT License.
 
 ## Search and filtering
@@ -71,7 +71,7 @@ Keyboard navigation, selection, and shortcuts must work consistently across the 
 
 ## Terms
 
-- **Browser profile:** A browser-managed identity and local data area, such as an Edge profile.
+- **Browser profile:** A browser-managed identity and local data area, identified by browser, user-data directory, and profile folder.
 - **Enabled profile:** A browser profile the user has selected for inclusion in Bookmarktivity.
 - **Bookmark source:** The browser and profile from which a bookmark came.
 - **Combined workspace:** A view across enabled profiles that keeps each bookmark's source visible.
@@ -81,7 +81,7 @@ Keyboard navigation, selection, and shortcuts must work consistently across the 
 
 ## Open product and implementation decisions
 
-- Which of macOS, Windows, and Linux ship in the first release, and which browser integrations follow Edge.
+- Which of macOS, Windows, and Linux ship in the first release, and which browser integrations follow Chrome and Brave.
 - Which subset of the search and keyboard workflow forms the first usable release.
 - Exact query grammar and precedence for prefixes, quotes, `AND`/`OR`, regex mode, and folder scope; how invalid expressions are reported.
 - How a folder name match interacts with folder scoping.

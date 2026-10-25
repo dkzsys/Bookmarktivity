@@ -4,7 +4,7 @@ Bookmarktivity is an open-source desktop workspace for people with large bookmar
 
 As a standalone app, Bookmarktivity works outside the browser window. It reads local bookmarks from enabled profiles without changing browser files.
 
-Microsoft Edge is the first browser integration. Users choose which local Edge profiles to include; a combined workspace never merges distinct profiles. See [PRODUCT.md](PRODUCT.md) for confirmed scope and open decisions and [TECHNOLOGY.MD](TECHNOLOGY.MD) for the implementation boundaries.
+Microsoft Edge, Google Chrome, and Brave are local browser sources. Users choose which profiles to include; a combined workspace never merges distinct browsers or profiles. See [PRODUCT.md](PRODUCT.md) for confirmed scope and open decisions and [TECHNOLOGY.MD](TECHNOLOGY.MD) for the implementation boundaries.
 
 **License:** [MIT](LICENSE).
 
@@ -24,7 +24,7 @@ For example, `name:"Project plan"` finds that phrase anywhere within a longer bo
 ### Browse and act
 
 - **Navigate folders and results as trees.** Result folders start collapsed; opening one reveals its immediate children. Expand or collapse a selected branch, or expand and collapse all branches in **Your Folders**.
-- **Keep context visible.** Results show their Edge profile; the details panel shows the selected item's full folder path and source. Optional folder counts include bookmarks in descendants.
+- **Keep context visible.** Results show their browser and profile; the details panel shows the selected item's full folder path and source. Optional folder counts include bookmarks in descendants.
 - **Open and copy quickly.** Open a selected bookmark in the system default browser or copy its URL. Opening a selected folder navigates into or expands it.
 - **Choose your workspace layout.** Show or hide the folder and details sidebars, resize them, and switch between light and dark themes.
 - **Re-read only what you need.** Refresh all enabled profiles, one browser source, or one enabled profile. The current query and scope are reapplied, and read failures are reported by profile.
@@ -55,6 +55,8 @@ These are the current defaults. Search, results, copy, settings, and branch shor
 
 The first usable desktop implementation is in place. Real profile access runs only in Tauri; the browser preview uses synthetic bookmarks. The current feature set is described above. An [HTML mockup of this README](docs/readme-mockup.html) shows the proposed presentation.
 
+The current adapters read clear-text Chromium `Bookmarks` and `AccountBookmarks` files. If an encrypted copy also exists, Bookmarktivity shows the clear-text snapshot with a warning that it may be older than the browser's current bookmarks. If either store exists only in encrypted form, that profile read fails and its previously loaded results are removed. Full encrypted storage support remains open in [BUG.md](BUG.md).
+
 The native app has been compile-checked on macOS. An Apple Silicon DMG and a Windows x64 NSIS installer can be built locally; Windows installation and platform webview behavior still need validation before a public release. Linux packaging remains unvalidated.
 
 Windows test installers are unsigned. See [Windows distribution](docs/windows-distribution.md) for managed-PC testing and signing requirements before publishing a release.
@@ -68,9 +70,37 @@ Install Node.js 20+ and a Rust toolchain, then run:
     npm install
     npm run tauri -w @bookmarktivity/desktop -- dev
 
-The browser-only preview starts with npm run dev and uses synthetic data. The frontend build runs with npm run build; a desktop package builds with npm run tauri -w @bookmarktivity/desktop -- build.
+The browser-only preview starts with `npm run dev` and uses synthetic data. `npm run build` builds only the frontend; see below to package the desktop app.
 
-Run npm test for browser-neutral search tests, cargo test --manifest-path packages/browser-edge/Cargo.toml for synthetic Edge adapter tests, and cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml for the native host.
+Run npm test for browser-neutral search tests, cargo test --offline --manifest-path packages/browser-chromium/Cargo.toml for synthetic browser adapter tests, and cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml for the native host.
+
+## Package the desktop app
+
+Run these commands from the repository root (the directory containing the top-level `package.json`). Packaging builds the frontend and the Rust host. `-w @bookmarktivity/desktop` selects the desktop npm workspace, and `--` passes the remaining arguments to the Tauri CLI.
+
+### macOS
+
+On a Mac, install Node.js 20+, Rust, and Xcode Command Line Tools (`xcode-select --install`). Then run:
+
+```sh
+npm ci
+npm run tauri -w @bookmarktivity/desktop -- build
+```
+
+This creates `apps/desktop/src-tauri/target/release/bundle/macos/Bookmarktivity.app` and a DMG in `apps/desktop/src-tauri/target/release/bundle/dmg/`. To build only the `.app`, add `--bundles app` after `build`.
+
+### Windows
+
+On a 64-bit Windows PC, install Node.js 20+, Rust with the MSVC toolchain, and Microsoft C++ Build Tools with **Desktop development with C++** selected. Tauri also requires the WebView2 runtime; it is usually present on current Windows systems. In PowerShell, run:
+
+```powershell
+npm ci
+npm run tauri -w @bookmarktivity/desktop -- build --bundles nsis
+```
+
+The NSIS setup `.exe` appears in `apps\desktop\src-tauri\target\release\bundle\nsis\`. `--bundles nsis` builds the setup executable without also requesting an MSI package. See the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/) if a required tool is missing.
+
+These local packages are unsigned. Before distributing them publicly, follow the signing, notarization, and testing guidance in [release preparation](releases/README.md) and [Windows distribution](docs/windows-distribution.md).
 
 ## Repository map
 
@@ -78,13 +108,17 @@ Run npm test for browser-neutral search tests, cargo test --manifest-path packag
 | --- | --- |
 | `apps/desktop/` | Desktop user interface and platform packaging |
 | `packages/core/` | Browser-independent bookmark models and productivity features |
-| `packages/browser-edge/` | Edge profile discovery and bookmark integration |
+| `packages/browser-edge/` | Edge profile discovery |
+| `packages/browser-chrome/` | Chrome profile discovery |
+| `packages/browser-brave/` | Brave profile discovery |
+| `packages/browser-chromium/` | Shared read-only Chromium bookmark parser |
 | `fixtures/` | Synthetic, non-personal browser data for development and tests |
 | `docs/architecture.md` | System boundaries and data flow |
 | `docs/decisions/` | Recorded product and architecture decisions |
 | `apps/desktop/wireframe.html` | Interactive desktop wireframe using synthetic bookmarks |
 | `PRODUCT.md` | Product scope and terminology |
 | `TECHNOLOGY.MD` | Selected technology direction and implementation boundaries |
+| `BUG.md` | Dated bug descriptions, issues, and fixes |
 | `AGENTS.md` | Guidance for coding agents |
 
 ## License

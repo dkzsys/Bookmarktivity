@@ -1,0 +1,8 @@
+[package]
+name = "browser-brave"
+version = "0.3.0"
+edition = "2021"
+
+[dependencies]
+dirs = "6"
+browser-chromium = { path = "../browser-chromium" }

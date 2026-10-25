@@ -3,11 +3,12 @@ import {
   arrangeTree, bookmarkCountsByFolder, folderBranchIds, folderPath, fuzzyWordMatch, parseQuery, type Field, type Folder, type Item, type MatchSpan,
   type ProfileData, type ScopeMode, type SearchOptions, type SearchResult, type Sort
 } from "@bookmarktivity/core";
-import { inTauri, native, type EdgeProfile, type Preferences } from "./native";
+import { browserIds, browserNames, browserVersionPages, inTauri, native, type BrowserId, type BrowserProfile, type Preferences } from "./native";
 import { benchmarkSample, sampleData, sampleProfiles } from "./sample";
 import brandMark from "./assets/bookmarktivity-mark.svg";
 
-const defaultPrefs: Preferences = { enabledProfileIds: [], edgeUserDataDir: null, theme: "light" };
+const defaultPrefs: Preferences = { enabledProfileIds: [], edgeUserDataDir: null, chromeUserDataDir: null, braveUserDataDir: null, theme: "light" };
+const directoryFor = (prefs: Preferences, browserId: BrowserId): string | null => ({ edge: prefs.edgeUserDataDir, chrome: prefs.chromeUserDataDir, brave: prefs.braveUserDataDir })[browserId];
 const defaultOptions: SearchOptions = {
   query: "", refine: "", fields: ["name", "url", "folder"], regex: false,
   scopeId: null, scopeMode: "descendants", sort: "relevance"
@@ -150,7 +151,7 @@ function Chevron() {
 }
 
 export default function App() {
-  const [profiles, setProfiles] = useState<EdgeProfile[]>([]);
+  const [profiles, setProfiles] = useState<BrowserProfile[]>([]);
   const [prefs, setPrefs] = useState<Preferences>(defaultPrefs);
   const [data, setData] = useState<Record<string, ProfileData>>({});
   const [options, setOptions] = useState<SearchOptions>(defaultOptions);
@@ -172,10 +173,10 @@ export default function App() {
   const [refreshOpen, setRefreshOpen] = useState(false);
   const [folderMenu, setFolderMenu] = useState<FolderMenu | null>(null);
   const [busy, setBusy] = useState(false);
-  const [status, setStatus] = useState("Choose an Edge profile in Settings to begin.");
+  const [status, setStatus] = useState("Choose a browser profile in Settings to begin.");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState("");
-  const [directoryDraft, setDirectoryDraft] = useState("");
+  const [directoryDrafts, setDirectoryDrafts] = useState<Record<BrowserId, string>>({ edge: "", chrome: "", brave: "" });
   const [capturingShortcut, setCapturingShortcut] = useState<ShortcutAction | null>(null);
   const [shortcutDraft, setShortcutDraft] = useState("");
   const shortcutCaptureRef = useRef<HTMLButtonElement>(null);
@@ -258,6 +259,7 @@ export default function App() {
     return children;
   }, [allItems]);
   const profileMap = useMemo(() => new Map(profiles.map(profile => [profile.id, profile])), [profiles]);
+  const snapshotWarnings = useMemo(() => enabled.filter(profile => Boolean(data[profile.id]?.warning)), [enabled, data]);
   const result = useSearch(allItems, options);
   useLayoutEffect(() => {
     setCollapsedResults(new Set(result.items.filter(item => item.kind === "folder").map(item => item.id)));
@@ -275,7 +277,7 @@ export default function App() {
   const hasDates = allItems.some(item => item.dateAdded != null);
   const hasModified = allItems.some(item => item.dateModified != null);
 
-  const readTargets = useCallback(async (targets: EdgeProfile[], label: string) => {
+  const readTargets = useCallback(async (targets: BrowserProfile[], label: string) => {
     if (!targets.length) { setStatus("No enabled profiles to re-read."); return; }
     setBusy(true);
     const outcomes = await Promise.allSettled(targets.map(profile => native.readProfile(profile.id)));
@@ -286,7 +288,11 @@ export default function App() {
       if (outcome.status === "fulfilled") updates[profile.id] = outcome.value;
       else failures[profile.id] = String(outcome.reason);
     });
-    setData(previous => ({ ...previous, ...updates }));
+    setData(previous => {
+      const next = { ...previous, ...updates };
+      targets.forEach(profile => { if (failures[profile.id]) delete next[profile.id]; });
+      return next;
+    });
     setErrors(previous => {
       const next = { ...previous };
       targets.forEach(profile => delete next[profile.id]);
@@ -294,7 +300,7 @@ export default function App() {
     });
     const successCount = Object.keys(updates).length;
     const failedCount = Object.keys(failures).length;
-    setStatus(`${label}: ${successCount} refreshed${failedCount ? `, ${failedCount} failed. Previous data for failed profiles remains visible.` : "."}`);
+    setStatus(`${label}: ${successCount} refreshed${failedCount ? `, ${failedCount} failed. Data for failed profiles was removed.` : "."}`);
     setBusy(false);
   }, []);
 
@@ -305,23 +311,32 @@ export default function App() {
       setProfiles(sampleProfiles);
       let previewTheme: "light" | "dark" = "light";
       try { if (window.localStorage.getItem("bookmarktivity-theme") === "dark") previewTheme = "dark"; } catch { /* use light theme */ }
-      setPrefs({ enabledProfileIds: ["sample-personal", "sample-work"], edgeUserDataDir: null, theme: previewTheme });
+      setPrefs({ ...defaultPrefs, enabledProfileIds: ["sample-personal", "sample-work"], theme: previewTheme });
       const benchmark = import.meta.env.DEV && new URLSearchParams(location.search).has("benchmark");
       setData(benchmark ? benchmarkSample() : sampleData);
       setStatus(benchmark
         ? "Synthetic performance collection · 8,000 items."
-        : "Browser preview with synthetic bookmarks. Open the Tauri desktop app to connect Edge profiles.");
+        : "Browser preview with synthetic bookmarks. Open the Tauri desktop app to connect browser profiles.");
       return;
     }
     void (async () => {
       try {
         const saved = await native.loadPreferences();
-        setPrefs(saved);
-        setDirectoryDraft(saved.edgeUserDataDir || "");
-        const discovered = await native.discoverProfiles(saved.edgeUserDataDir);
+        setDirectoryDrafts({ edge: saved.edgeUserDataDir || "", chrome: saved.chromeUserDataDir || "", brave: saved.braveUserDataDir || "" });
+        const outcomes = await Promise.allSettled(browserIds.map(browserId => native.discoverProfiles(browserId, directoryFor(saved, browserId))));
+        const discovered = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
+        const migrated = [...new Set(saved.enabledProfileIds.map(id => {
+          const legacy = discovered.find(profile => profile.browserId === "edge" && profile.folderId === id);
+          return legacy?.id || id;
+        }))];
+        const nextPrefs = { ...defaultPrefs, ...saved, enabledProfileIds: migrated };
+        if (migrated.some((id, index) => id !== saved.enabledProfileIds[index])) await native.savePreferences(nextPrefs);
+        setPrefs(nextPrefs);
         setProfiles(discovered);
-        await readTargets(discovered.filter(p => saved.enabledProfileIds.includes(p.id)), "Startup");
-        if (!saved.enabledProfileIds.length) setSettingsOpen(true);
+        await readTargets(discovered.filter(p => migrated.includes(p.id)), "Startup");
+        const failures = outcomes.flatMap((outcome, index) => outcome.status === "rejected" ? [`${browserNames[browserIds[index]]}: ${String(outcome.reason)}`] : []);
+        if (failures.length) setStatus(failures.join(" · "));
+        if (!migrated.length) setSettingsOpen(true);
       } catch (error) {
         setStatus(String(error));
         setSettingsOpen(true);
@@ -358,7 +373,7 @@ export default function App() {
     setOptions(previous => ({ ...previous, ...patch }));
   };
 
-  const refresh = async (targets: EdgeProfile[], label: string) => {
+  const refresh = async (targets: BrowserProfile[], label: string) => {
     setRefreshOpen(false);
     await readTargets(targets, label);
   };
@@ -387,25 +402,25 @@ export default function App() {
     } catch (error) { notify(String(error)); }
   };
 
-  const findProfiles = async () => {
-    const directory = directoryDraft.trim() || null;
+  const findProfiles = async (browserId: BrowserId) => {
+    const directory = directoryDrafts[browserId].trim() || null;
     try {
-      const found = await native.discoverProfiles(directory);
-      const sameDirectory = directory === prefs.edgeUserDataDir;
+      const found = await native.discoverProfiles(browserId, directory);
+      const sameDirectory = directory === directoryFor(prefs, browserId);
+      const oldIds = profiles.filter(profile => profile.browserId === browserId).map(profile => profile.id);
       const next: Preferences = {
-        enabledProfileIds: sameDirectory ? prefs.enabledProfileIds.filter(id => found.some(profile => profile.id === id)) : [],
-        edgeUserDataDir: directory,
-        shortcuts: prefs.shortcuts,
-        theme: prefs.theme
+        ...prefs,
+        enabledProfileIds: prefs.enabledProfileIds.filter(id => !oldIds.includes(id) || (sameDirectory && found.some(profile => profile.id === id))),
+        [`${browserId}UserDataDir`]: directory
       };
       await native.savePreferences(next);
       setPrefs(next);
-      setProfiles(found);
+      setProfiles(previous => [...previous.filter(profile => profile.browserId !== browserId), ...found]);
       if (!sameDirectory) {
-        setData({});
+        setData(previous => { const copy = { ...previous }; oldIds.forEach(id => delete copy[id]); return copy; });
         updateOptions({ scopeId: null });
       }
-      setStatus(`Found ${found.length} Edge ${found.length === 1 ? "profile" : "profiles"}. Choose which to include.`);
+      setStatus(`Found ${found.length} ${browserNames[browserId]} ${found.length === 1 ? "profile" : "profiles"}. Choose which to include.`);
     } catch (error) { setStatus(String(error)); }
   };
 
@@ -675,7 +690,7 @@ export default function App() {
       </div>;
     };
     return enabled.map(profile => <div className="profile-group" key={profile.id}>
-      <div className="profile-label"><span className="edge-icon">e</span> Edge · {profile.name}</div>
+      <div className="profile-label"><span className="edge-icon">{profile.browserId[0].toUpperCase()}</span> {browserNames[profile.browserId]} · {profile.name}</div>
       {(folderChildren.get("") || []).filter(folder => folder.source.profileId === profile.id).map(folder => renderFolder(folder, 1))}
     </div>);
   }, [enabled, folderChildren, collapsedNav, options.scopeId, showBookmarkCounts, bookmarkCounts]);
@@ -721,14 +736,17 @@ export default function App() {
         </header>
         <div className="result-head"><div><h2>{options.query ? "Search results" : scopedFolder?.name || "All bookmarks"}</h2><div className="caption">{result.error || `${result.items.length} matching items · ${visible.length} visible · Folders first`}</div></div>
           <div className="result-tools"><div className="reread-control"><button className="btn" disabled={busy || !enabled.length || !inTauri} onClick={() => void refresh(enabled, "All enabled sources")}>↻ &nbsp;{busy ? "Re-reading…" : "Re-read all sources"}</button><button className="btn" disabled={!enabled.length} aria-label="Choose re-read target" aria-expanded={refreshOpen} onClick={() => setRefreshOpen(!refreshOpen)}>▾</button>
-            {refreshOpen && <div className="reread-menu"><div className="reread-menu-label">By source</div><button onClick={() => void refresh(enabled, "Microsoft Edge")}>Microsoft Edge <small>{enabled.length} enabled</small></button><div className="menu-rule" /><div className="reread-menu-label">By profile</div>{enabled.map(profile => <button key={profile.id} onClick={() => void refresh([profile], profile.name)}>Edge · {profile.name}</button>)}</div>}
+            {refreshOpen && <div className="reread-menu"><div className="reread-menu-label">By source</div>{browserIds.map(browserId => {
+              const targets = enabled.filter(profile => profile.browserId === browserId);
+              return targets.length ? <button key={browserId} onClick={() => void refresh(targets, browserNames[browserId])}>{browserNames[browserId]} <small>{targets.length} enabled</small></button> : null;
+            })}<div className="menu-rule" /><div className="reread-menu-label">By profile</div>{enabled.map(profile => <button key={profile.id} onClick={() => void refresh([profile], profile.name)}>{browserNames[profile.browserId]} · {profile.name}</button>)}</div>}
           </div><div className="sort-wrap"><label htmlFor="sort">Sort by</label><select id="sort" value={options.sort} onChange={event => updateOptions({ sort: event.target.value as Sort })}><option value="relevance">Relevance</option><option value="alphabetical">Alphabetical</option>{hasDates && <option value="created">Date created</option>}{hasModified && <option value="modified">Date modified</option>}</select></div></div>
         </div>
-        <div className="source-status" role="status">{status}{Object.entries(errors).map(([id, error]) => <div key={id}>Edge · {profileMap.get(id)?.name || id}: {error}</div>)}</div>
-        <div className="active-bar"><span className="chip blue">Edge · {enabled.length} enabled {enabled.length === 1 ? "profile" : "profiles"}</span>{scopedFolder && <span className="chip">{scopedFolder.name} · {options.scopeMode === "direct" ? "direct only" : "with descendants"}</span>}{options.query && <span className="chip">Query: {options.query}</span>}{options.refine && <span className="chip">Within results: {options.refine}</span>}{result.matchedFolderIds.length > 0 && <span className="chip">Folder matches include contents</span>}<span className="chip">{options.regex ? "Regex mode" : `Fields: ${options.fields.join(", ") || "none"}`}</span></div>
+        <div className="source-status" role="status">{status}{Object.entries(errors).map(([id, error]) => <div key={id}>{profileMap.get(id) ? `${browserNames[profileMap.get(id)!.browserId]} · ${profileMap.get(id)!.name}` : id}: {error}</div>)}{snapshotWarnings.map(profile => <div className="source-warning" key={profile.id}>{browserNames[profile.browserId]} · {profile.name}: {data[profile.id].warning}</div>)}</div>
+        <div className="active-bar"><span className="chip blue">{enabled.length} enabled {enabled.length === 1 ? "profile" : "profiles"}</span>{snapshotWarnings.length > 0 && <span className="chip">{snapshotWarnings.length} possibly stale {snapshotWarnings.length === 1 ? "profile" : "profiles"}</span>}{scopedFolder && <span className="chip">{scopedFolder.name} · {options.scopeMode === "direct" ? "direct only" : "with descendants"}</span>}{options.query && <span className="chip">Query: {options.query}</span>}{options.refine && <span className="chip">Within results: {options.refine}</span>}{result.matchedFolderIds.length > 0 && <span className="chip">Folder matches include contents</span>}<span className="chip">{options.regex ? "Regex mode" : `Fields: ${options.fields.join(", ") || "none"}`}</span></div>
         <label className="refine"><span>⌕</span><input ref={refineRef} type="search" aria-label="Search within results" placeholder="Search within these results…" value={options.refine} onChange={event => updateOptions({ refine: event.target.value })} /><span className="key">{labelFor(bindings.refine)}</span></label>
         <div className={`result-list ${virtual ? "virtual" : ""}`} role="tree" aria-label="Search results" tabIndex={0} ref={resultsRef} onScroll={event => setResultScroll(event.currentTarget.scrollTop)}>
-          {!visible.length ? <div className="empty"><strong>{result.error ? "Check the search query" : enabled.length ? "No matches in this scope" : "Choose an Edge profile"}</strong>{result.error || (enabled.length ? "Try another query, field, folder, or enabled profile." : "Open Profiles & settings to include local bookmarks.")}</div> : <>
+          {!visible.length ? <div className="empty"><strong>{result.error ? "Check the search query" : enabled.length ? "No matches in this scope" : "Choose a browser profile"}</strong>{result.error || (enabled.length ? "Try another query, field, folder, or enabled profile." : "Open Profiles & settings to include local bookmarks.")}</div> : <>
             <div className="list-head"><span>Item / location</span><span>Source</span></div>
             <div className={virtual ? "virtual-space" : "result-rows"} style={virtual ? { height: visible.length * rowHeight } : undefined}>
             {rendered.map((item, offset) => {
@@ -752,7 +770,7 @@ export default function App() {
                 onContextMenu={isFolder ? event => openFolderMenu("results", item.id, event) : undefined}
                 onClick={event => { setSelectedId(item.id); if ((event.target as HTMLElement).closest("[data-result-branch]") && isFolder && childCount) setResultCollapsed(item.id, expanded); focusResult(item.id); }}
                 onDoubleClick={() => { setSelectedId(item.id); void openItem(item); }}>
-                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Chevron /></span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={textQueries} spans={titleSpans} /></span><span className="item-sub"><Highlight value={sub} queries={textQueries} spans={subSpans} /></span></span>{isFolder && showBookmarkCounts && <span className="bookmark-count" title="Bookmarks including subfolders" aria-label={`${bookmarkCounts.get(item.id) || 0} bookmarks including subfolders`}>{bookmarkCounts.get(item.id) || 0}</span>}<span className="source">Edge · {item.source.profileName}</span>
+                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Chevron /></span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={textQueries} spans={titleSpans} /></span><span className="item-sub"><Highlight value={sub} queries={textQueries} spans={subSpans} /></span></span>{isFolder && showBookmarkCounts && <span className="bookmark-count" title="Bookmarks including subfolders" aria-label={`${bookmarkCounts.get(item.id) || 0} bookmarks including subfolders`}>{bookmarkCounts.get(item.id) || 0}</span>}<span className="source">{browserNames[item.source.browserId as BrowserId]} · {item.source.profileName}</span>
               </button>;
             })}
             </div>
@@ -762,11 +780,11 @@ export default function App() {
       {rightSidebarOpen && <div className="resize-handle right-resize" role="separator" aria-label="Resize details sidebar" aria-orientation="vertical" aria-valuemin={sidebarLimits.right.min} aria-valuemax={sidebarLimits.right.max} aria-valuenow={rightSidebarWidth} tabIndex={0} style={{ right: rightSidebarWidth - 4 }} onPointerDown={event => startSidebarResize("right", event)} onPointerMove={moveSidebarResize} onPointerUp={stopSidebarResize} onPointerCancel={stopSidebarResize} onKeyDown={event => sidebarResizeKey("right", event)} />}
       {rightSidebarOpen && <aside className="detail" id="details-sidebar" aria-label="Selected item details"><div className="detail-head">{selected ? `Selected ${selected.kind}` : "Details"}</div>{selected ? <>
         <div className="detail-icon">{selected.kind === "folder" ? "▱" : "↗"}</div><h2>{selected.name}</h2>{selected.kind === "bookmark" && <span className="detail-url">{selected.url}</span>}
-        <div className="metadata"><div><span className="meta-label">Source</span><span className="meta-value"><span className="edge-icon">e</span> &nbsp;Microsoft Edge · {selected.source.profileName}</span></div><div><span className="meta-label">Full folder path</span><div className="path">{selectedPath.map(folder => <span key={folder.id}>{folder.name}</span>)}</div></div><div><span className="meta-label">Type</span><span className="meta-value">{selected.kind === "folder" ? "Folder" : "Bookmark"}</span></div></div>
+        <div className="metadata"><div><span className="meta-label">Source</span><span className="meta-value"><span className="edge-icon">{selected.source.browserId[0].toUpperCase()}</span> &nbsp;{browserNames[selected.source.browserId as BrowserId]} · {selected.source.profileName}{data[selected.source.profileId]?.warning ? " · Possibly stale snapshot" : ""}</span></div><div><span className="meta-label">Full folder path</span><div className="path">{selectedPath.map(folder => <span key={folder.id}>{folder.name}</span>)}</div></div><div><span className="meta-label">Type</span><span className="meta-value">{selected.kind === "folder" ? "Folder" : "Bookmark"}</span></div></div>
         <div className="detail-actions"><button className="btn btn-primary" onClick={() => void openItem(selected)}>{selected.kind === "folder" ? "Open folder" : "Open in default browser"} ↗</button>{selected.kind === "bookmark" && <button className="btn" onClick={() => void copyItem(selected)}>Copy URL</button>}</div>
-      </> : <p className="detail-empty">Select a folder or bookmark to see its source and full path.</p>}<div className="read-only">Read only. Bookmarktivity does not change Edge bookmark files.</div></aside>}
+      </> : <p className="detail-empty">Select a folder or bookmark to see its source and full path.</p>}<div className="read-only">Read only. Bookmarktivity does not change browser bookmark files.</div></aside>}
       </div>
-      <footer className="footer"><span>Enabled profiles only · Read-only Edge access</span><div className="shortcuts"><span><span className="key">{labelFor(bindings.results)}</span> Results</span><span><span className="key">← →</span> Folders</span><span><span className="key">Esc Esc</span> Reset</span><span><span className="key">{labelFor(bindings.copy)}</span> Copy URL</span></div></footer>
+      <footer className="footer"><span>Enabled profiles only · Read-only browser access</span><div className="shortcuts"><span><span className="key">{labelFor(bindings.results)}</span> Results</span><span><span className="key">← →</span> Folders</span><span><span className="key">Esc Esc</span> Reset</span><span><span className="key">{labelFor(bindings.copy)}</span> Copy URL</span></div></footer>
     </div>
     {folderMenu && <div className="folder-context-menu" role="menu" aria-label={`Folder actions for ${folderMap.get(folderMenu.id)?.name || "selected folder"}`} ref={folderMenuRef} style={{ left: folderMenu.x, top: folderMenu.y }} onKeyDown={event => {
       if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
@@ -791,10 +809,13 @@ export default function App() {
         <button id="settings-tab-profiles" type="button" role="tab" aria-selected={settingsTab === "profiles"} aria-controls="settings-panel-profiles" tabIndex={settingsTab === "profiles" ? 0 : -1} onClick={() => { setSettingsTab("profiles"); setCapturingShortcut(null); }}>Local bookmark profiles</button>
         <button id="settings-tab-shortcuts" type="button" role="tab" aria-selected={settingsTab === "shortcuts"} aria-controls="settings-panel-shortcuts" tabIndex={settingsTab === "shortcuts" ? 0 : -1} onClick={() => setSettingsTab("shortcuts")}>Keyboard shortcuts</button>
       </div>
-      {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}><div className="settings-section"><h3>Microsoft Edge · Local profiles</h3><div className="directory-row"><label htmlFor="edge-dir">Edge user-data directory</label><div><input id="edge-dir" placeholder="Use system default" value={directoryDraft} onChange={event => setDirectoryDraft(event.target.value)} /><button className="btn" onClick={() => void findProfiles()} disabled={!inTauri}>Find profiles</button></div><small>For a custom Edge location, enter the user-data directory shown at edge://version.</small></div>
-        {profiles.map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">e</span> &nbsp;{profile.name}</strong><small>Microsoft Edge · {profile.id}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
-        {!profiles.length && <p className="settings-note">No profiles found yet. Check the directory and choose Find profiles.</p>}
-      </div></div>}
+      {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}>
+        {browserIds.map(browserId => <div className="settings-section" key={browserId}><h3>{browserNames[browserId]} · Local profiles</h3>
+          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} /><button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>For a custom location, enter the parent of the profile directory shown at {browserVersionPages[browserId]}.</small></div>
+          {profiles.filter(profile => profile.browserId === browserId).map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">{browserId[0].toUpperCase()}</span> &nbsp;{profile.name}</strong><small>{browserNames[browserId]} · {profile.folderId}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
+          {!profiles.some(profile => profile.browserId === browserId) && <p className="settings-note">No profiles found. Check the directory and choose Find profiles.</p>}
+        </div>)}
+      </div>}
       {settingsTab === "shortcuts" && <div id="settings-panel-shortcuts" role="tabpanel" aria-labelledby="settings-tab-shortcuts" className="settings-panel" tabIndex={0}><div className="settings-section"><h3>Keyboard shortcuts</h3>
         {(Object.keys(shortcutNames) as ShortcutAction[]).map(action => <div key={action}>
           <div className="shortcut-line"><span>{shortcutNames[action]}</span><button ref={capturingShortcut === action ? shortcutCaptureRef : undefined} className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => { setCapturingShortcut(action); setShortcutDraft(bindings[action]); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>

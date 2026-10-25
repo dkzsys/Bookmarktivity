@@ -18,6 +18,10 @@ struct Preferences {
     enabled_profile_ids: Vec<String>,
     edge_user_data_dir: Option<String>,
     #[serde(default)]
+    chrome_user_data_dir: Option<String>,
+    #[serde(default)]
+    brave_user_data_dir: Option<String>,
+    #[serde(default)]
     shortcuts: HashMap<String, String>,
     #[serde(default)]
     theme: Theme,
@@ -49,8 +53,16 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn discover_profiles(user_data_dir: Option<String>) -> Result<Vec<Profile>, String> {
-    browser_edge::discover(user_data_dir.as_deref())
+fn discover_profiles(
+    browser_id: String,
+    user_data_dir: Option<String>,
+) -> Result<Vec<Profile>, String> {
+    match browser_id.as_str() {
+        "edge" => browser_edge::discover(user_data_dir.as_deref()),
+        "chrome" => browser_chrome::discover(user_data_dir.as_deref()),
+        "brave" => browser_brave::discover(user_data_dir.as_deref()),
+        _ => Err("Unsupported browser source.".into()),
+    }
 }
 
 #[tauri::command]
@@ -63,7 +75,20 @@ fn read_profile(profile_id: String) -> Result<ProfileData, String> {
     {
         return Err("Enable this profile before reading it.".into());
     }
-    browser_edge::read_profile(&profile_id, preferences.edge_user_data_dir.as_deref())
+    let (browser_id, _, _): (String, String, String) =
+        serde_json::from_str(&profile_id).map_err(|_| "Invalid profile identity.".to_string())?;
+    match browser_id.as_str() {
+        "edge" => {
+            browser_edge::read_profile(&profile_id, preferences.edge_user_data_dir.as_deref())
+        }
+        "chrome" => {
+            browser_chrome::read_profile(&profile_id, preferences.chrome_user_data_dir.as_deref())
+        }
+        "brave" => {
+            browser_brave::read_profile(&profile_id, preferences.brave_user_data_dir.as_deref())
+        }
+        _ => Err("Unsupported browser source.".into()),
+    }
 }
 
 #[tauri::command]

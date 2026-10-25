@@ -152,6 +152,8 @@ dependencies = [
 name = "bookmarktivity-desktop"
 version = "0.3.0"
 dependencies = [
+ "browser-brave",
+ "browser-chrome",
  "browser-edge",
  "dirs 6.0.0",
  "open",
@@ -183,12 +185,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "browser-brave"
+version = "0.3.0"
+dependencies = [
+ "browser-chromium",
+ "dirs 6.0.0",
+]
+
+[[package]]
+name = "browser-chrome"
+version = "0.3.0"
+dependencies = [
+ "browser-chromium",
+ "dirs 6.0.0",
+]
+
+[[package]]
+name = "browser-chromium"
+version = "0.3.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "browser-edge"
 version = "0.3.0"
 dependencies = [
+ "browser-chromium",
  "dirs 6.0.0",
- "serde",
- "serde_json",
 ]
 
 [[package]]

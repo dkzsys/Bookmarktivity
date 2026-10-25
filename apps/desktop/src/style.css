@@ -179,6 +179,7 @@ mark{background:#ffe8a7;color:inherit;border-radius:3px;padding:0 1px}
 .directory-row .btn{padding:8px 11px}
 button:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 .source-status div{color:#b34d55;margin-top:3px}
+.source-status .source-warning{color:#946300}
 .sidebar{height:100%;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 .result-rows{display:flex;flex-direction:column;gap:8px}
 .result-list.virtual{display:block;height:min(62vh,680px);min-height:300px;overflow-y:auto;overscroll-behavior:contain}
@@ -203,6 +204,7 @@ button:disabled{opacity:.5;cursor:not-allowed;transform:none!important}
 [data-theme="dark"] .detail{border-left-color:#30384b}
 [data-theme="dark"] .breadcrumb strong,[data-theme="dark"] .modal h2,[data-theme="dark"] .syntax-menu strong,[data-theme="dark"] .empty strong{color:#eef0fa}
 [data-theme="dark"] .breadcrumb,[data-theme="dark"] .footer,[data-theme="dark"] .result-head .caption,[data-theme="dark"] .source-status,[data-theme="dark"] .list-head{color:#a6b0c4}
+[data-theme="dark"] .source-status .source-warning{color:#e6bb67}
 [data-theme="dark"] .btn,[data-theme="dark"] .sort-wrap select,[data-theme="dark"] .shortcut-capture{border-color:#3c465c;background:#263145;color:#e0e5f4}
 [data-theme="dark"] .btn:hover{border-color:#8171ec;box-shadow:0 5px 14px #0004}
 [data-theme="dark"] .btn-primary{border-color:#7565ef;background:linear-gradient(135deg,#7665ff,#5849df);color:#fff}

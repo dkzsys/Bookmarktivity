@@ -30,7 +30,7 @@ export interface Bookmark {
 }
 
 export type Item = Folder | Bookmark;
-export interface ProfileData { folders: Folder[]; bookmarks: Bookmark[] }
+export interface ProfileData { folders: Folder[]; bookmarks: Bookmark[]; warning?: string | null }
 export interface SearchOptions {
   query: string;
   refine: string;
