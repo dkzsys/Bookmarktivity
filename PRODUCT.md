@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Bookmarktivity combines **bookmarks** and **productivity**. It is a standalone desktop workspace for power users who need to find and navigate large bookmark collections quickly, especially with the keyboard. Every result must make its browser and profile of origin clear.
+Bookmarktivity combines **bookmarks** and **productivity**. It is a standalone desktop workspace for users who need advanced search and filtering across large bookmark collections, with keyboard shortcuts for fast navigation. Every result must make its browser and profile of origin clear.
 
 ## Confirmed scope
 
@@ -83,7 +83,7 @@ Keyboard navigation, selection, and shortcuts must work consistently across the 
 
 - Which of macOS, Windows, and Linux ship in the first release, and which browser integrations follow Chrome and Brave.
 - Which subset of the search and keyboard workflow forms the first usable release.
-- Exact query grammar and precedence for prefixes, quotes, `AND`/`OR`, regex mode, and folder scope; how invalid expressions are reported.
+- Future query grammar beyond the first implementation recorded in [decision 0007](docs/decisions/0007-first-query-and-preview-behavior.md), including any syntax for descendants versus direct children.
 - How a folder name match interacts with folder scoping.
 - Fuzzy ranking, “recent” data source, metadata availability across browsers, and fallback behavior for missing dates.
 - Whether bookmark data also refreshes automatically, how deleted or moved browser bookmarks are reflected after a re-read, and what measured performance would justify a local database.

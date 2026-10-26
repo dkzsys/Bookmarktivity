@@ -32,6 +32,14 @@ jobs:
       - name: Build NSIS installer
         run: npm run tauri -w @bookmarktivity/desktop -- build --bundles nsis
 
+      - name: Verify installer is a Windows executable
+        shell: pwsh
+        run: |
+          $installers = @(Get-ChildItem apps/desktop/src-tauri/target/release/bundle/nsis/*-setup.exe -File)
+          if ($installers.Count -ne 1) { throw "Expected exactly one NSIS installer, found $($installers.Count)" }
+          node scripts/check-windows-installer.mjs $installers[0].FullName
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - name: Upload installer
         uses: actions/upload-artifact@v4
         with:

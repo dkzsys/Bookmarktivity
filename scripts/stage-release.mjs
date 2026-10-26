@@ -3,6 +3,7 @@ import { createReadStream, existsSync, mkdirSync, readFileSync, copyFileSync, wr
 import { once } from "node:events";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { checkWindowsInstaller } from "./check-windows-installer.mjs";
 
 const version = process.argv[2];
 if (!/^\d+\.\d+\.\d+$/.test(version || "")) {
@@ -32,6 +33,7 @@ const bundles = [
 
 for (const bundle of bundles) {
   if (!existsSync(bundle.from)) throw new Error(`Missing bundle: ${bundle.from}`);
+  if (bundle.name.endsWith("-setup.exe")) checkWindowsInstaller(bundle.from);
 }
 mkdirSync(artifacts, { recursive: true });
 
@@ -52,6 +54,7 @@ for (const bundle of bundles) {
   } else {
     copyFileSync(bundle.from, to);
   }
+  if (bundle.name.endsWith("-setup.exe")) checkWindowsInstaller(to);
   const hash = await sha256(to);
   sums.push(`${hash}  ${bundle.name}`);
   console.log(`${bundle.name}: ${hash}`);

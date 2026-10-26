@@ -1,6 +1,12 @@
 # Bookmarktivity
 
-Bookmarktivity is an open-source desktop workspace for people with large bookmark collections. Search across the browser profiles you choose, narrow results in layers, and move through folders with the keyboard. Every result keeps its browser and profile of origin visible.
+Bookmarktivity is an open-source desktop workspace for users who need:
+
+- Advanced bookmark search and filtering across large collections.
+- Keyboard shortcuts that make finding and navigating bookmarks faster.
+- A standalone bookmark workspace when browser extensions are unavailable or restricted by corporate browser policies.
+
+Search across the browser profiles you choose, refine results in layers, and move through folders with the keyboard. Every result keeps its browser and profile of origin visible.
 
 As a standalone app, Bookmarktivity works outside the browser window. It reads local bookmarks from enabled profiles without changing browser files.
 
@@ -13,9 +19,13 @@ Microsoft Edge, Google Chrome, and Brave are local browser sources. Users choose
 ### Find and filter
 
 - **Search across enabled profiles** by bookmark name, URL, and immediate containing folder name. Select any combination of those fields; text matching is case-insensitive.
+- **Find approximate matches with fuzzy search.** Unquoted terms can match substrings or nearby words despite small spelling differences.
+- **Find an exact phrase with quotation marks.** A query such as `"Project plan"` matches that contiguous text anywhere within a selected field, including inside a longer word or name.
+- **Target specific fields** with `name:`, `url:`, and `folder:` prefixes, alone or in combination. The folder field matches a folder's own name or a bookmark's immediate containing folder.
+- **Combine conditions with `AND` and `OR`.** Adjacent terms imply `AND`; `AND` takes precedence over `OR`.
+- **Use regular expressions** by switching on regex mode. The full primary query runs as a case-insensitive pattern in a time-limited background worker.
 - **Build layered filters:** run a primary query, then use **Search within results** to narrow that result set while retaining the original query and folder scope. Active filters remain visible.
 - **Scope a search to a folder** and choose whether it includes descendants or only direct contents. Folder-name matching and folder scope are separate controls.
-- **Write expressive queries** with `name:`, `url:`, and `folder:` prefixes, quoted phrases, `AND`, and `OR`. Adjacent terms imply `AND`, and `AND` takes precedence over `OR`. Unquoted terms also allow nearby fuzzy word matches. A regular-expression toggle runs the full primary query in a time-limited worker.
 - **Search large collections** in a background worker. Text queries show progress until the latest search finishes; regex searches retain a short execution limit.
 - **Explore matching folders:** a standalone folder-name search finds folders whose names match and lets you expand their contents, even when a child item does not match the folder name. Other search modes show matching items only.
 - **Sort and scan results** by relevance or alphabetically, with created and modified date options when source metadata supports them. Matching text is highlighted in the results.
@@ -100,6 +110,15 @@ npm run tauri -w @bookmarktivity/desktop -- build --bundles nsis
 ```
 
 The NSIS setup `.exe` appears in `apps\desktop\src-tauri\target\release\bundle\nsis\`. `--bundles nsis` builds the setup executable without also requesting an MSI package. See the [Tauri Windows prerequisites](https://v2.tauri.app/start/prerequisites/) if a required tool is missing.
+
+Before transferring an installer, verify that it is a Windows executable and record its SHA-256:
+
+```powershell
+Get-ChildItem .\apps\desktop\src-tauri\target\release\bundle\nsis\*-setup.exe |
+  ForEach-Object { node scripts/check-windows-installer.mjs $_.FullName }
+```
+
+On the destination PC, run `Get-FileHash <installer-path> -Algorithm SHA256` in PowerShell and compare it with the build PC's hash. A `.exe` filename alone does not establish that the file contains a valid installer.
 
 These local packages are unsigned. Before distributing them publicly, follow the signing, notarization, and testing guidance in [release preparation](releases/README.md) and [Windows distribution](docs/windows-distribution.md).
 
