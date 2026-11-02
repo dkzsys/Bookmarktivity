@@ -101,7 +101,7 @@ npm run tauri -w @bookmarktivity/desktop -- build
 
 This creates `apps/desktop/src-tauri/target/release/bundle/macos/Bookmarktivity.app` and a DMG in `apps/desktop/src-tauri/target/release/bundle/dmg/`. To build only the `.app`, add `--bundles app` after `build`.
 
-On macOS 27, browser data folders may require an explicit access grant. If no profiles appear, open **Profiles & settings**, click **Choose folder…** for each browser you use, and select its user-data folder (the parent of `Default` or `Profile N`). Bookmarktivity then finds profiles and refreshes any that were already enabled. An access error is shown when macOS denies the folder. The chosen folder is saved in preferences; browser files remain read-only.
+On macOS 27, automatic discovery of browser profiles may require Full Disk Access. If no profiles appear, open **Profiles & settings** and click **Open Full Disk Access settings**. Add or enable Bookmarktivity in System Settings, return to the app, then click **Find profiles** for each browser. Only the user can grant this permission. **Choose folder…** remains available for custom browser user-data locations; it does not enable automatic access to protected default locations. Browser files remain read-only.
 
 ### Windows
 

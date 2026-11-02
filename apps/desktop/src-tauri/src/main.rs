@@ -109,6 +109,15 @@ fn choose_user_data_dir(
     receiver.recv().map_err(|error| error.to_string())?
 }
 
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn open_full_disk_access_settings() -> Result<(), String> {
+    open::that(
+        "x-apple.systempreferences:com.apple.settings.PrivacySecurity.extension?Privacy_AllFiles",
+    )
+    .map_err(|error| format!("Cannot open Full Disk Access settings: {error}"))
+}
+
 #[tauri::command]
 fn read_profile(profile_id: String) -> Result<ProfileData, String> {
     let preferences = load_preferences()?;
@@ -152,6 +161,8 @@ fn main() {
             discover_profiles,
             #[cfg(target_os = "macos")]
             choose_user_data_dir,
+            #[cfg(target_os = "macos")]
+            open_full_disk_access_settings,
             read_profile,
             open_bookmark
         ])

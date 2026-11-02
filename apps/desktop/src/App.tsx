@@ -17,7 +17,7 @@ const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const profileDiscoveryError = (error: unknown) => {
   const message = String(error);
   return mac && /permission denied|operation not permitted|access denied/i.test(message)
-    ? `${message} On macOS, choose the browser user-data folder in Settings to grant access, then try again.`
+    ? `${message} On macOS, grant Bookmarktivity Full Disk Access in System Settings, then try Find profiles again.`
     : message;
 };
 type ShortcutAction = "find" | "refine" | "results" | "copy" | "settings" | "expandAll" | "collapseAll";
@@ -184,6 +184,7 @@ function Chevron() {
 export default function App() {
   const [profiles, setProfiles] = useState<BrowserProfile[]>([]);
   const [discoveryErrors, setDiscoveryErrors] = useState<Partial<Record<BrowserId, string>>>({});
+  const [fullDiskAccessError, setFullDiskAccessError] = useState<string | null>(null);
   const [prefs, setPrefs] = useState<Preferences>(defaultPrefs);
   const [data, setData] = useState<Record<string, ProfileData>>({});
   const [options, setOptions] = useState<SearchOptions>(defaultOptions);
@@ -471,6 +472,13 @@ export default function App() {
       setDirectoryDrafts(previous => ({ ...previous, [browserId]: directory }));
       await findProfiles(browserId, directory);
     } catch (error) { setStatus(profileDiscoveryError(error)); }
+  };
+
+  const openFullDiskAccessSettings = async () => {
+    try {
+      await native.openFullDiskAccessSettings();
+      setFullDiskAccessError(null);
+    } catch (error) { setFullDiskAccessError(String(error)); }
   };
 
   const saveShortcuts = async (shortcuts: Record<string, string>): Promise<boolean> => {
@@ -869,8 +877,9 @@ export default function App() {
         <button id="settings-tab-shortcuts" type="button" role="tab" aria-selected={settingsTab === "shortcuts"} aria-controls="settings-panel-shortcuts" tabIndex={settingsTab === "shortcuts" ? 0 : -1} onClick={() => setSettingsTab("shortcuts")}>Keyboard shortcuts</button>
       </div>
       {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}>
+        {mac && <div className="settings-section"><h3>macOS browser access</h3><p>To discover browser profiles automatically, add Bookmarktivity in System Settings › Privacy &amp; Security › Full Disk Access. After allowing access, return here and choose Find profiles for each browser.</p><button className="btn" onClick={() => void openFullDiskAccessSettings()} disabled={!inTauri}>Open Full Disk Access settings</button>{fullDiskAccessError && <p className="settings-note" role="alert">{fullDiskAccessError}</p>}</div>}
         {browserIds.map(browserId => <div className="settings-section" key={browserId}><h3>{browserNames[browserId]} · Local profiles</h3>
-          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} />{mac && <button className="btn" onClick={() => void chooseProfileDirectory(browserId)} disabled={!inTauri}>Choose folder…</button>}<button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>{mac ? "If macOS blocks browser data access, choose the user-data folder to grant Bookmarktivity access. " : "For a custom location, enter the parent of the profile directory shown at "}{browserVersionPages[browserId]} shows the active profile path.</small></div>
+          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} />{mac && <button className="btn" onClick={() => void chooseProfileDirectory(browserId)} disabled={!inTauri}>Choose folder…</button>}<button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>For a custom location, use the parent of the profile directory shown at {browserVersionPages[browserId]}.</small></div>
           {profiles.filter(profile => profile.browserId === browserId).map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">{browserId[0].toUpperCase()}</span> &nbsp;{profile.name}</strong><small>{browserNames[browserId]} · {profile.folderId}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
           {discoveryErrors[browserId] && <p className="settings-note" role="alert">{discoveryErrors[browserId]}</p>}
           {!profiles.some(profile => profile.browserId === browserId) && !discoveryErrors[browserId] && <p className="settings-note">No profiles found. Check the directory and choose Find profiles.</p>}

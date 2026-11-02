@@ -29,6 +29,7 @@ export const native = {
   savePreferences: (preferences: Preferences) => invoke<void>("save_preferences", { preferences }),
   discoverProfiles: (browserId: BrowserId, userDataDir: string | null) => invoke<BrowserProfile[]>("discover_profiles", { browserId, userDataDir }),
   chooseUserDataDir: (browserId: BrowserId) => invoke<string | null>("choose_user_data_dir", { browserId }),
+  openFullDiskAccessSettings: () => invoke<void>("open_full_disk_access_settings"),
   readProfile: (profileId: string) => invoke<ProfileData>("read_profile", { profileId }),
   openBookmark: (url: string) => invoke<void>("open_bookmark", { url })
 };
