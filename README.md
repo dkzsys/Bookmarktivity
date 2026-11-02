@@ -100,6 +100,8 @@ npm run tauri -w @bookmarktivity/desktop -- build
 
 This creates `apps/desktop/src-tauri/target/release/bundle/macos/Bookmarktivity.app` and a DMG in `apps/desktop/src-tauri/target/release/bundle/dmg/`. To build only the `.app`, add `--bundles app` after `build`.
 
+On macOS 27, browser data folders may require an explicit access grant. If no profiles appear, open **Profiles & settings**, click **Choose folder…** for each browser you use, and select its user-data folder (the parent of `Default` or `Profile N`). Bookmarktivity then finds profiles and refreshes any that were already enabled. An access error is shown when macOS denies the folder. The chosen folder is saved in preferences; browser files remain read-only.
+
 ### Windows
 
 On a 64-bit Windows PC, install Node.js 20+, Rust with the MSVC toolchain, and Microsoft C++ Build Tools with **Desktop development with C++** selected. Tauri also requires the WebView2 runtime; it is usually present on current Windows systems. In PowerShell, run:

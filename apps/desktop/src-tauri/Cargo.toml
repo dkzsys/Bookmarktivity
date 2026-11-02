@@ -15,3 +15,8 @@ open = "5"
 browser-edge = { path = "../../../packages/browser-edge" }
 browser-chrome = { path = "../../../packages/browser-chrome" }
 browser-brave = { path = "../../../packages/browser-brave" }
+
+[target.'cfg(target_os = "macos")'.dependencies]
+objc2 = "0.6"
+objc2-app-kit = { version = "0.3", default-features = false, features = ["NSOpenPanel", "NSSavePanel", "NSPanel", "NSWindow", "NSResponder"] }
+objc2-foundation = "0.3"

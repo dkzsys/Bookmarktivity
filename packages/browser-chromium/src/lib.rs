@@ -61,17 +61,23 @@ pub fn profile_key(browser_id: &str, user_data_dir: &Path, folder_id: &str) -> S
         .expect("profile identity is serializable")
 }
 
-fn bookmark_file_exists(path: &Path) -> bool {
-    [
+fn bookmark_file_exists(path: &Path) -> Result<bool, String> {
+    for name in [
         "Bookmarks",
         "AccountBookmarks",
         "EncryptedBookmarks2",
         "EncryptedAccountBookmarks2",
         "EncryptedBookmarks",
         "EncryptedAccountBookmarks",
-    ]
-    .iter()
-    .any(|name| path.join(name).is_file())
+    ] {
+        match fs::metadata(path.join(name)) {
+            Ok(metadata) if metadata.is_file() => return Ok(true),
+            Ok(_) => {},
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+            Err(error) => return Err(format!("Cannot inspect {name} in a browser profile: {error}")),
+        }
+    }
+    Ok(false)
 }
 
 pub fn discover(
@@ -81,16 +87,25 @@ pub fn discover(
 ) -> Result<Vec<Profile>, String> {
     let root = if let Some(value) = override_dir.filter(|value| !value.trim().is_empty()) {
         let path = PathBuf::from(value);
-        if !path.is_dir() {
-            return Err(format!(
-                "The configured {browser_id} user-data directory does not exist."
-            ));
+        match fs::metadata(&path) {
+            Ok(metadata) if metadata.is_dir() => {},
+            Ok(_) => return Err(format!("The configured {browser_id} user-data path is not a directory.")),
+            Err(error) if error.kind() == std::io::ErrorKind::NotFound =>
+                return Err(format!("The configured {browser_id} user-data directory does not exist.")),
+            Err(error) => return Err(format!("Cannot access the configured {browser_id} user-data directory: {error}")),
         }
         path
-    } else if let Some(path) = candidates.into_iter().find(|path| path.is_dir()) {
-        path
     } else {
-        return Ok(Vec::new());
+        let mut found = None;
+        for path in candidates {
+            match fs::metadata(&path) {
+                Ok(metadata) if metadata.is_dir() => { found = Some(path); break; },
+                Ok(_) => {},
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
+                Err(error) => return Err(format!("Cannot access the {browser_id} user-data directory: {error}")),
+            }
+        }
+        match found { Some(path) => path, None => return Ok(Vec::new()) }
     };
     let root = fs::canonicalize(root).map_err(|error| error.to_string())?;
     let names = fs::read(root.join("Local State"))
@@ -105,10 +120,11 @@ pub fn discover(
             .file_name()
             .and_then(|name| name.to_str())
             .unwrap_or("");
-        if !path.is_dir()
-            || !(folder_id == "Default" || folder_id.starts_with("Profile "))
-            || !bookmark_file_exists(&path)
-        {
+        if !(folder_id == "Default" || folder_id.starts_with("Profile ")) {
+            continue;
+        }
+        let metadata = fs::metadata(&path).map_err(|error| format!("Cannot inspect a browser profile: {error}"))?;
+        if !metadata.is_dir() || !bookmark_file_exists(&path)? {
             continue;
         }
         let name = names
@@ -307,6 +323,17 @@ mod tests {
         assert_eq!(data.bookmarks[0].source.profile_id, chrome.id);
         fs::remove_dir_all(root).unwrap();
         fs::remove_dir_all(other_root).unwrap();
+    }
+
+    #[test]
+    fn distinguishes_a_bad_override_from_missing_default_profiles() {
+        let root = fixture_root();
+        let file = root.join("Local State");
+        assert!(discover("edge", vec![], Some(file.to_str().unwrap()))
+            .unwrap_err()
+            .contains("not a directory"));
+        assert!(discover("edge", vec![], None).unwrap().is_empty());
+        fs::remove_dir_all(root).unwrap();
     }
 
     #[test]

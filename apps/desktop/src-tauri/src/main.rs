@@ -65,6 +65,50 @@ fn discover_profiles(
     }
 }
 
+#[cfg(target_os = "macos")]
+#[tauri::command]
+fn choose_user_data_dir(
+    app: tauri::AppHandle,
+    browser_id: String,
+) -> Result<Option<String>, String> {
+    use objc2::MainThreadMarker;
+    use objc2_app_kit::{NSModalResponseOK, NSOpenPanel};
+    use objc2_foundation::NSString;
+    use std::sync::mpsc;
+
+    let browser_name = match browser_id.as_str() {
+        "edge" => "Microsoft Edge",
+        "chrome" => "Google Chrome",
+        "brave" => "Brave",
+        _ => return Err("Unsupported browser source.".into()),
+    };
+    let (sender, receiver) = mpsc::channel();
+    app.run_on_main_thread(move || {
+        let result = (|| {
+            let mtm = MainThreadMarker::new()
+                .ok_or("Cannot open the folder picker off the main thread.")?;
+            let panel = NSOpenPanel::openPanel(mtm);
+            panel.setCanChooseDirectories(true);
+            panel.setCanChooseFiles(false);
+            panel.setAllowsMultipleSelection(false);
+            let message = NSString::from_str(&format!(
+                "Choose the {browser_name} user-data folder containing your profile folders."
+            ));
+            panel.setMessage(Some(&message));
+            if panel.runModal() != NSModalResponseOK {
+                return Ok(None);
+            }
+            Ok(panel
+                .URL()
+                .and_then(|url| url.path())
+                .map(|path| path.to_string()))
+        })();
+        let _ = sender.send(result);
+    })
+    .map_err(|error| error.to_string())?;
+    receiver.recv().map_err(|error| error.to_string())?
+}
+
 #[tauri::command]
 fn read_profile(profile_id: String) -> Result<ProfileData, String> {
     let preferences = load_preferences()?;
@@ -106,6 +150,8 @@ fn main() {
             load_preferences,
             save_preferences,
             discover_profiles,
+            #[cfg(target_os = "macos")]
+            choose_user_data_dir,
             read_profile,
             open_bookmark
         ])

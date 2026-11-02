@@ -14,6 +14,12 @@ const defaultOptions: SearchOptions = {
   scopeId: null, scopeMode: "descendants", sort: "relevance"
 };
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+const profileDiscoveryError = (error: unknown) => {
+  const message = String(error);
+  return mac && /permission denied|operation not permitted|access denied/i.test(message)
+    ? `${message} On macOS, choose the browser user-data folder in Settings to grant access, then try again.`
+    : message;
+};
 type ShortcutAction = "find" | "refine" | "results" | "copy" | "settings" | "expandAll" | "collapseAll";
 const defaultBindings: Record<ShortcutAction, string> = {
   find: mac ? "Meta+F" : "Ctrl+F",
@@ -177,6 +183,7 @@ function Chevron() {
 
 export default function App() {
   const [profiles, setProfiles] = useState<BrowserProfile[]>([]);
+  const [discoveryErrors, setDiscoveryErrors] = useState<Partial<Record<BrowserId, string>>>({});
   const [prefs, setPrefs] = useState<Preferences>(defaultPrefs);
   const [data, setData] = useState<Record<string, ProfileData>>({});
   const [options, setOptions] = useState<SearchOptions>(defaultOptions);
@@ -349,6 +356,7 @@ export default function App() {
         const saved = await native.loadPreferences();
         setDirectoryDrafts({ edge: saved.edgeUserDataDir || "", chrome: saved.chromeUserDataDir || "", brave: saved.braveUserDataDir || "" });
         const outcomes = await Promise.allSettled(browserIds.map(browserId => native.discoverProfiles(browserId, directoryFor(saved, browserId))));
+        setDiscoveryErrors(Object.fromEntries(outcomes.flatMap((outcome, index) => outcome.status === "rejected" ? [[browserIds[index], profileDiscoveryError(outcome.reason)]] : [])));
         const discovered = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
         const migrated = [...new Set(saved.enabledProfileIds.map(id => {
           const legacy = discovered.find(profile => profile.browserId === "edge" && profile.folderId === id);
@@ -359,11 +367,11 @@ export default function App() {
         setPrefs(nextPrefs);
         setProfiles(discovered);
         await readTargets(discovered.filter(p => migrated.includes(p.id)), "Startup");
-        const failures = outcomes.flatMap((outcome, index) => outcome.status === "rejected" ? [`${browserNames[browserIds[index]]}: ${String(outcome.reason)}`] : []);
+        const failures = outcomes.flatMap((outcome, index) => outcome.status === "rejected" ? [`${browserNames[browserIds[index]]}: ${profileDiscoveryError(outcome.reason)}`] : []);
         if (failures.length) setStatus(failures.join(" · "));
-        if (!migrated.length) setSettingsOpen(true);
+        if (!discovered.some(profile => migrated.includes(profile.id))) setSettingsOpen(true);
       } catch (error) {
-        setStatus(String(error));
+        setStatus(profileDiscoveryError(error));
         setSettingsOpen(true);
       }
     })();
@@ -427,26 +435,42 @@ export default function App() {
     } catch (error) { notify(String(error)); }
   };
 
-  const findProfiles = async (browserId: BrowserId) => {
-    const directory = directoryDrafts[browserId].trim() || null;
+  const findProfiles = async (browserId: BrowserId, chosenDirectory?: string) => {
+    const directory = (chosenDirectory ?? directoryDrafts[browserId]).trim() || null;
     try {
       const found = await native.discoverProfiles(browserId, directory);
-      const sameDirectory = directory === directoryFor(prefs, browserId);
+      setDiscoveryErrors(previous => { const next = { ...previous }; delete next[browserId]; return next; });
       const oldIds = profiles.filter(profile => profile.browserId === browserId).map(profile => profile.id);
+      const foundIds = new Set(found.map(profile => profile.id));
       const next: Preferences = {
         ...prefs,
-        enabledProfileIds: prefs.enabledProfileIds.filter(id => !oldIds.includes(id) || (sameDirectory && found.some(profile => profile.id === id))),
+        enabledProfileIds: prefs.enabledProfileIds.filter(id => !oldIds.includes(id) || foundIds.has(id)),
         [`${browserId}UserDataDir`]: directory
       };
       await native.savePreferences(next);
       setPrefs(next);
       setProfiles(previous => [...previous.filter(profile => profile.browserId !== browserId), ...found]);
-      if (!sameDirectory) {
-        setData(previous => { const copy = { ...previous }; oldIds.forEach(id => delete copy[id]); return copy; });
+      if (oldIds.some(id => !foundIds.has(id))) {
+        setData(previous => { const copy = { ...previous }; oldIds.filter(id => !foundIds.has(id)).forEach(id => delete copy[id]); return copy; });
         updateOptions({ scopeId: null });
       }
-      setStatus(`Found ${found.length} ${browserNames[browserId]} ${found.length === 1 ? "profile" : "profiles"}. Choose which to include.`);
-    } catch (error) { setStatus(String(error)); }
+      const enabledFound = found.filter(profile => next.enabledProfileIds.includes(profile.id));
+      if (enabledFound.length) await readTargets(enabledFound, browserNames[browserId]);
+      else setStatus(`Found ${found.length} ${browserNames[browserId]} ${found.length === 1 ? "profile" : "profiles"}. Choose which to include.`);
+    } catch (error) {
+      const message = profileDiscoveryError(error);
+      setDiscoveryErrors(previous => ({ ...previous, [browserId]: message }));
+      setStatus(message);
+    }
+  };
+
+  const chooseProfileDirectory = async (browserId: BrowserId) => {
+    try {
+      const directory = await native.chooseUserDataDir(browserId);
+      if (!directory) return;
+      setDirectoryDrafts(previous => ({ ...previous, [browserId]: directory }));
+      await findProfiles(browserId, directory);
+    } catch (error) { setStatus(profileDiscoveryError(error)); }
   };
 
   const saveShortcuts = async (shortcuts: Record<string, string>): Promise<boolean> => {
@@ -836,9 +860,10 @@ export default function App() {
       </div>
       {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}>
         {browserIds.map(browserId => <div className="settings-section" key={browserId}><h3>{browserNames[browserId]} · Local profiles</h3>
-          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} /><button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>For a custom location, enter the parent of the profile directory shown at {browserVersionPages[browserId]}.</small></div>
+          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} />{mac && <button className="btn" onClick={() => void chooseProfileDirectory(browserId)} disabled={!inTauri}>Choose folder…</button>}<button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>{mac ? "If macOS blocks browser data access, choose the user-data folder to grant Bookmarktivity access. " : "For a custom location, enter the parent of the profile directory shown at "}{browserVersionPages[browserId]} shows the active profile path.</small></div>
           {profiles.filter(profile => profile.browserId === browserId).map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">{browserId[0].toUpperCase()}</span> &nbsp;{profile.name}</strong><small>{browserNames[browserId]} · {profile.folderId}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
-          {!profiles.some(profile => profile.browserId === browserId) && <p className="settings-note">No profiles found. Check the directory and choose Find profiles.</p>}
+          {discoveryErrors[browserId] && <p className="settings-note" role="alert">{discoveryErrors[browserId]}</p>}
+          {!profiles.some(profile => profile.browserId === browserId) && !discoveryErrors[browserId] && <p className="settings-note">No profiles found. Check the directory and choose Find profiles.</p>}
         </div>)}
       </div>}
       {settingsTab === "shortcuts" && <div id="settings-panel-shortcuts" role="tabpanel" aria-labelledby="settings-tab-shortcuts" className="settings-panel" tabIndex={0}><div className="settings-section"><h3>Keyboard shortcuts</h3>
