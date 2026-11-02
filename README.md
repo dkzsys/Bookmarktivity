@@ -55,6 +55,7 @@ These are the current defaults. Search, results, copy, settings, and branch shor
 | Expand the focused folder and its descendants | `Command+E` | `Ctrl+E` |
 | Collapse the focused folder and its descendants | `Command+Shift+E` | `Ctrl+Shift+E` |
 | Move through visible folder or result rows | `Up` / `Down` | `Up` / `Down` |
+| Move from either search field into results | `Down` | `Down` |
 | Jump to the first or last visible result | `Home` / `End` | `Home` / `End` |
 | Expand or enter a folder; collapse or move to its parent | `Right` / `Left` | `Right` / `Left` |
 | Open the selected bookmark or folder | `Enter` | `Enter` |

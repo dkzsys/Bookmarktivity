@@ -537,6 +537,10 @@ export default function App() {
       document.querySelector<HTMLElement>(`[data-result-id="${CSS.escape(id)}"]`)?.focus();
     }));
   };
+  const focusResults = () => {
+    if (selected) focusResult(selected.id);
+    else resultsRef.current?.focus();
+  };
   const focusFolder = (id: string) => requestAnimationFrame(() => {
     document.querySelector<HTMLElement>(`[data-folder-id="${CSS.escape(id)}"]`)?.focus();
   });
@@ -637,7 +641,7 @@ export default function App() {
       }
       if (chord === bindings.results) {
         event.preventDefault(); setSettingsOpen(false);
-        if (selected) focusResult(selected.id); else resultsRef.current?.focus();
+        focusResults();
         return;
       }
       if (chord === bindings.settings) {
@@ -667,6 +671,12 @@ export default function App() {
       }
       if (settingsOpen) return;
       const target = event.target as HTMLElement;
+      if (event.key === "ArrowDown" && !event.altKey && !event.ctrlKey && !event.metaKey && !event.shiftKey
+        && (target === queryRef.current || target === refineRef.current)) {
+        event.preventDefault();
+        focusResults();
+        return;
+      }
       const resultRow = target.closest<HTMLElement>("[data-result-id]");
       const navRow = target.closest<HTMLElement>("[data-folder-id]");
       if (resultRow) {
