@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Bookmarktivity · UI directions</title>
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; color: #222; background: #e5e4e0; }
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, select:focus-visible, .result:focus-visible { outline: 3px solid #175eaa; outline-offset: 2px; }
+    .chooser { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 12px 20px; background: #202426; color: #f7f7f5; }
+    .chooser strong { font-size: 13px; letter-spacing: .02em; }
+    .chooser p { margin: 0 auto 0 0; color: #bdc4c6; font-size: 12px; }
+    .chooser nav { display: flex; gap: 6px; }
+    .chooser button { border: 1px solid #717a7d; background: transparent; color: white; border-radius: 3px; padding: 8px 12px; font-size: 12px; }
+    .chooser button[aria-pressed="true"] { background: #fff; color: #202426; border-color: #fff; }
+    .app { min-height: calc(100dvh - 58px); display: grid; grid-template-columns: 246px minmax(400px, 1fr) 286px; grid-template-rows: 58px minmax(0, 1fr) 32px; background: var(--canvas); color: var(--ink); }
+    .app button { color: inherit; }
+    .app-header { grid-column: 1 / -1; grid-row: 1; display: flex; align-items: center; gap: 16px; padding: 0 20px; border-bottom: 1px solid var(--line); background: var(--surface); }
+    .brand { display: flex; align-items: center; gap: 10px; white-space: nowrap; font-size: 15px; font-weight: 700; letter-spacing: -.025em; }
+    .brand-mark { width: 22px; height: 22px; border: 2px solid currentColor; display: grid; place-items: center; font-size: 12px; line-height: 1; }
+    .header-context { color: var(--soft); font-size: 12px; }
+    .header-actions { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+    .plain-button { border: 1px solid var(--line); background: var(--surface); padding: 7px 10px; border-radius: var(--radius); font-size: 12px; white-space: nowrap; }
+    .plain-button:hover, .folder:hover, .result:hover { background: var(--hover); }
+    .sidebar { grid-column: 1; grid-row: 2; padding: 22px 10px; overflow: auto; border-right: 1px solid var(--line); background: var(--sidebar); }
+    .sidebar-title, .eyebrow { margin: 0 12px 10px; color: var(--soft); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
+    .folder { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 34px; padding: 7px 11px; border: 0; border-radius: var(--radius); background: transparent; text-align: left; font-size: 12px; }
+    .folder[aria-current="true"] { background: var(--selected); color: var(--selected-ink); font-weight: 700; }
+    .folder .folder-count { margin-left: auto; font-variant-numeric: tabular-nums; color: var(--soft); }
+    .folder-symbol { width: 14px; height: 11px; border: 1.5px solid currentColor; border-radius: 1px; position: relative; opacity: .75; }
+    .folder-symbol::before { content: ""; position: absolute; width: 6px; height: 3px; left: -1.5px; top: -4px; border: 1.5px solid currentColor; border-bottom: 0; border-radius: 1px 1px 0 0; }
+    .source-section { margin-top: 26px; }
+    .source-row { display: flex; align-items: center; gap: 8px; padding: 8px 12px; font-size: 12px; }
+    .source-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+    .source-row small { margin-left: auto; color: var(--soft); font-size: 11px; }
+    .side-note { margin: 20px 12px 0; padding-top: 14px; border-top: 1px solid var(--line); color: var(--soft); font-size: 11px; line-height: 1.5; }
+    .main { grid-column: 2; grid-row: 2; min-width: 0; overflow: auto; background: var(--canvas); }
+    .main-inner { max-width: 1100px; margin: auto; padding: 26px 32px 40px; }
+    .page-title { display: flex; align-items: baseline; gap: 12px; margin: 0 0 16px; font-size: 22px; line-height: 1.2; letter-spacing: -.035em; }
+    .page-title small { color: var(--soft); font-family: system-ui, sans-serif; font-size: 11px; font-weight: 500; letter-spacing: 0; white-space: nowrap; }
+    .search-row { display: flex; gap: 8px; align-items: center; }
+    .search-box { display: flex; align-items: center; gap: 10px; min-width: 0; flex: 1; height: 40px; padding: 0 12px; border: 1px solid var(--control-line); border-radius: var(--radius); background: var(--surface); }
+    .search-box svg { width: 16px; height: 16px; color: var(--soft); flex: none; }
+    .search-box input { width: 100%; min-width: 0; border: 0; outline: 0; background: transparent; color: var(--ink); font-size: 13px; }
+    .search-box input::placeholder { color: var(--soft); }
+    kbd { border: 1px solid var(--line); border-radius: 3px; padding: 2px 4px; color: var(--soft); font-family: inherit; font-size: 10px; white-space: nowrap; }
+    .search-tools { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; margin: 11px 0 24px; color: var(--muted); font-size: 11px; }
+    .search-tools label { display: inline-flex; align-items: center; gap: 5px; }
+    .search-tools input { accent-color: var(--accent); }
+    .search-tools select { padding: 4px 6px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--surface); color: var(--ink); font-size: 11px; }
+    .result-head { display: flex; align-items: center; gap: 14px; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+    .result-head strong { font-size: 13px; }
+    .result-head span { color: var(--soft); font-size: 11px; }
+    .results { padding-top: 5px; }
+    .result { display: grid; grid-template-columns: minmax(160px, 1fr) minmax(110px, .9fr) 118px; gap: 12px; align-items: center; width: 100%; min-height: 48px; border: 0; border-bottom: 1px solid var(--line); border-radius: var(--row-radius); background: transparent; color: var(--ink); text-align: left; padding: 7px 10px; }
+    .result[aria-selected="true"] { background: var(--selected); }
+    .item-name { min-width: 0; display: flex; align-items: center; gap: 9px; font-size: 12px; font-weight: 650; }
+    .item-name span:last-child, .item-url, .item-source { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .item-glyph { display: grid; place-items: center; width: 19px; height: 19px; border: 1px solid var(--line); border-radius: 3px; flex: none; color: var(--muted); font-size: 10px; font-weight: 700; }
+    .item-url, .item-source { color: var(--muted); font-size: 11px; }
+    .item-source { color: var(--source); }
+    .group-label { margin: 22px 10px 3px; color: var(--soft); font-size: 10px; font-weight: 700; letter-spacing: .11em; text-transform: uppercase; }
+    .empty { margin: 24px 0; color: var(--muted); font-size: 13px; }
+    .detail { grid-column: 3; grid-row: 2; overflow: auto; padding: 26px 21px; border-left: 1px solid var(--line); background: var(--detail); }
+    .detail .eyebrow { margin-left: 0; }
+    .detail h2 { margin: 17px 0 8px; font-size: 18px; line-height: 1.3; letter-spacing: -.03em; overflow-wrap: anywhere; }
+    .detail a { color: var(--link); font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+    .detail dl { margin: 24px 0; border-top: 1px solid var(--line); }
+    .detail dt { margin-top: 17px; color: var(--soft); font-size: 10px; text-transform: uppercase; letter-spacing: .1em; }
+    .detail dd { margin: 5px 0 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
+    .detail-actions { display: flex; flex-wrap: wrap; gap: 7px; }
+    .primary-button { border: 1px solid var(--accent); border-radius: var(--radius); padding: 8px 11px; background: var(--accent); color: var(--accent-ink) !important; font-size: 11px; font-weight: 700; }
+    .primary-button:hover { filter: brightness(.92); }
+    .detail-note { margin-top: 25px; padding-top: 15px; border-top: 1px solid var(--line); color: var(--soft); font-size: 11px; line-height: 1.5; }
+    .status { grid-column: 1 / -1; grid-row: 3; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 0 16px; border-top: 1px solid var(--line); background: var(--surface); color: var(--soft); font-size: 10px; }
+    .status span:last-child { white-space: nowrap; }
+    /* A: familiar, precise desktop utility. */
+    body[data-concept="workbench"] { --canvas:#f9faf9; --surface:#fff; --sidebar:#f3f5f3; --detail:#fff; --ink:#202725; --muted:#596461; --soft:#65716d; --line:#dce2de; --control-line:#b9c6bf; --hover:#e9efeb; --selected:#dcece3; --selected-ink:#183e2c; --accent:#275c43; --accent-ink:#fff; --source:#3b5d50; --link:#245a42; --radius:4px; --row-radius:2px; }
+    body[data-concept="workbench"] .brand-mark { color:#275c43; }
+    body[data-concept="workbench"] .app-header { box-shadow: 0 1px 2px #16251a0a; }
+    /* B: a personal reference library. */
+    body[data-concept="archive"] { --canvas:#fbf8f1; --surface:#fbf8f1; --sidebar:#eee9df; --detail:#f5f0e6; --ink:#29251e; --muted:#5e574c; --soft:#716a5e; --line:#d9d2c4; --control-line:#b8ad99; --hover:#e7dfd0; --selected:#e8d8bb; --selected-ink:#3c2b16; --accent:#81542d; --accent-ink:#fff; --source:#6a513a; --link:#765026; --radius:0px; --row-radius:0px; }
+    body[data-concept="archive"] .app { grid-template-columns: 216px minmax(400px, 1fr) 295px; }
+    body[data-concept="archive"] .brand, body[data-concept="archive"] .page-title, body[data-concept="archive"] .detail h2 { font-family: Georgia, "Times New Roman", serif; font-weight: 400; }
+    body[data-concept="archive"] .brand { font-size: 19px; letter-spacing: -.04em; }
+    body[data-concept="archive"] .page-title { font-size: 34px; margin-bottom: 22px; }
+    body[data-concept="archive"] .page-title small { align-self: end; padding-bottom: 5px; }
+    body[data-concept="archive"] .main-inner { padding: 34px 40px 50px; }
+    body[data-concept="archive"] .result { min-height: 64px; grid-template-columns: minmax(170px, 1fr) minmax(100px, .8fr) 120px; }
+    body[data-concept="archive"] .item-name { font-family: Georgia, "Times New Roman", serif; font-size: 15px; font-weight: 400; }
+    body[data-concept="archive"] .item-glyph { border: 0; font-family: Georgia, serif; font-size: 16px; }
+    body[data-concept="archive"] .detail h2 { font-size: 27px; }
+    body[data-concept="archive"] .group-label { margin-top: 31px; color:#81542d; }
+    /* C: keyboard-first index, maximising visible records. */
+    body[data-concept="index"] { --canvas:#f5f5f3; --surface:#ebebe8; --sidebar:#222724; --detail:#ebebe8; --ink:#1e2420; --muted:#505c53; --soft:#536058; --line:#ccd1ca; --control-line:#7c8980; --hover:#e4e9e2; --selected:#d1dfcb; --selected-ink:#183120; --accent:#1d4f2b; --accent-ink:#fff; --source:#364c39; --link:#1d4f2b; --radius:0px; --row-radius:0px; }
+    body[data-concept="index"] .app { grid-template-columns: 172px minmax(420px, 1fr); grid-template-rows: 45px minmax(0, 1fr) auto 28px; }
+    body[data-concept="index"] .app-header { padding: 0 14px; }
+    body[data-concept="index"] .brand { font-size: 13px; letter-spacing: -.03em; }
+    body[data-concept="index"] .brand-mark { width: 18px; height: 18px; }
+    body[data-concept="index"] .sidebar { color:#e0e8e0; border-color:#222724; padding-top: 17px; }
+    body[data-concept="index"] .sidebar-title, body[data-concept="index"] .sidebar .eyebrow, body[data-concept="index"] .sidebar .folder-count, body[data-concept="index"] .sidebar .side-note, body[data-concept="index"] .sidebar .source-row small { color:#aebfb0; }
+    body[data-concept="index"] .sidebar .folder:hover { background:#3b493e; }
+    body[data-concept="index"] .sidebar .folder[aria-current="true"] { color:#fff; background:#376047; }
+    body[data-concept="index"] .main-inner { max-width:none; padding: 22px 26px; }
+    body[data-concept="index"] .page-title { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 20px; font-weight: 600; }
+    body[data-concept="index"] .search-row { max-width: 900px; }
+    body[data-concept="index"] .result { min-height: 37px; grid-template-columns: minmax(160px, 1.15fr) minmax(100px, 1fr) 140px; padding-top: 4px; padding-bottom: 4px; }
+    body[data-concept="index"] .item-name { font-size: 12px; }
+    body[data-concept="index"] .item-url, body[data-concept="index"] .item-source { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
+    body[data-concept="index"] .group-label { margin-top: 18px; }
+    body[data-concept="index"] .detail { grid-column: 2; grid-row: 3; display: grid; grid-template-columns: minmax(180px, 1.2fr) minmax(220px, 1fr) auto; align-items: start; gap: 20px; padding: 14px 26px; border-left: 0; border-top: 1px solid var(--line); }
+    body[data-concept="index"] .detail .eyebrow { grid-column: 1 / -1; margin: 0; }
+    body[data-concept="index"] .detail-title { min-width: 0; }
+    body[data-concept="index"] .detail h2 { margin: 0 0 5px; font-size: 15px; }
+    body[data-concept="index"] .detail dl { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 12px; margin: 0; border: 0; }
+    body[data-concept="index"] .detail dt { margin: 0; }
+    body[data-concept="index"] .detail dd { margin: 0 0 6px; }
+    body[data-concept="index"] .detail-actions { justify-content: end; }
+    body[data-concept="index"] .detail-note { display:none; }
+    body[data-concept="index"] .status { grid-row:4; }
+    @media (max-width: 980px) {
+      .app, body[data-concept="archive"] .app { grid-template-columns: 190px minmax(0, 1fr); }
+      .detail, body[data-concept="index"] .detail { display: none; }
+      .main { grid-column: 2; }
+      .result { grid-template-columns: minmax(120px, 1fr) minmax(90px, .8fr) 100px; }
+    }
+    @media (max-width: 650px) {
+      .chooser { align-items: start; }
+      .chooser nav { width: 100%; flex-wrap: wrap; }
+      .app, body[data-concept="archive"] .app, body[data-concept="index"] .app { display:block; }
+      .app-header { min-height: 48px; }
+      .header-context, .header-actions, .sidebar, .status { display:none; }
+      .main-inner, body[data-concept="archive"] .main-inner, body[data-concept="index"] .main-inner { padding: 22px 16px; }
+      .page-title { flex-wrap: wrap; }
+      .result, body[data-concept="archive"] .result, body[data-concept="index"] .result { grid-template-columns: minmax(0, 1fr) 115px; }
+      .item-url { display:none; }
+      .search-tools { gap: 9px; }
+    }
+    @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition: none !important; } }
+  </style>
+</head>
+<body data-concept="workbench">
+  <div class="chooser">
+    <strong>Bookmarktivity / design study</strong>
+    <p>Standalone concepts with synthetic bookmarks. Select a direction to compare.</p>
+    <nav aria-label="Design directions">
+      <button type="button" data-switch="workbench" aria-pressed="true">01 · Workbench</button>
+      <button type="button" data-switch="archive" aria-pressed="false">02 · Archive</button>
+      <button type="button" data-switch="index" aria-pressed="false">03 · Index</button>
+    </nav>
+  </div>
+  <div class="app">
+    <header class="app-header">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">B</span> Bookmarktivity</div>
+      <span class="header-context">/ Combined workspace</span>
+      <div class="header-actions"><button type="button" class="plain-button" id="refresh">Re-read sources</button><button type="button" class="plain-button" id="settings">Profiles &amp; settings</button></div>
+    </header>
+    <aside class="sidebar" aria-label="Folder scope">
+      <p class="sidebar-title">Location</p>
+      <nav id="folders" aria-label="Folders"></nav>
+      <div class="source-section"><p class="eyebrow">Enabled sources</p><div class="source-row"><span class="source-dot"></span> Edge · Work <small>18</small></div><div class="source-row"><span class="source-dot"></span> Chrome · Personal <small>12</small></div><div class="source-row"><span class="source-dot"></span> Brave · Research <small>8</small></div></div>
+      <p class="side-note">Each browser profile stays separate. Only enabled profiles appear here.</p>
+    </aside>
+    <main class="main" id="main">
+      <div class="main-inner">
+        <h1 class="page-title" id="page-title">All bookmarks <small>3 enabled profiles</small></h1>
+        <div class="search-row"><label class="search-box" for="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg><input id="search" type="search" placeholder="Search names, folders or URLs" autocomplete="off"><kbd>⌘ F</kbd></label><button class="plain-button" type="button" id="clear">Clear</button></div>
+        <div class="search-tools"><span>Search in</span><label><input type="checkbox" value="name" checked> Name</label><label><input type="checkbox" value="folder" checked> Folder</label><label><input type="checkbox" value="url" checked> URL</label><label><input type="checkbox" id="regex"> Regex</label><span style="margin-left:auto">Sort <select id="sort" aria-label="Sort results"><option value="folder">Folder first</option><option value="name">Name A–Z</option><option value="source">Source</option></select></span></div>
+        <div class="result-head"><strong id="result-heading">Bookmarks</strong><span id="result-count" role="status"></span></div>
+        <div class="results" id="results" aria-label="Bookmark results"></div>
+      </div>
+    </main>
+    <aside class="detail" aria-label="Selected bookmark details"><p class="eyebrow">Selected bookmark</p><div class="detail-title"><h2 id="detail-name"></h2><a id="detail-url" href="#" target="_blank" rel="noopener noreferrer"></a></div><dl><div><dt>Browser profile</dt><dd id="detail-source"></dd></div><div><dt>Folder path</dt><dd id="detail-path"></dd></div></dl><div class="detail-actions"><button type="button" class="primary-button" id="open">Open bookmark</button><button type="button" class="plain-button" id="copy">Copy URL</button></div><p class="detail-note">Read only. Your browser bookmarks are never edited from this view.</p></aside>
+    <footer class="status"><span>Design prototype · synthetic data · read only</span><span>↑ ↓ Results &nbsp; · &nbsp; Enter Open &nbsp; · &nbsp; ⌘ C Copy URL</span></footer>
+  </div>
+  <script>
+    const bookmarks = [
+      { id:1, name:"Design systems guide", url:"https://example.org/design/systems", folder:"Design", path:"Work / Design", source:"Edge · Work" },
+      { id:2, name:"Quarterly planning notes", url:"https://example.org/work/planning", folder:"Projects", path:"Work / Projects", source:"Edge · Work" },
+      { id:3, name:"React documentation", url:"https://react.dev/learn", folder:"Development", path:"Work / Development", source:"Edge · Work" },
+      { id:4, name:"Reading list · architecture", url:"https://example.org/articles/architecture", folder:"Reading", path:"Personal / Reading", source:"Chrome · Personal" },
+      { id:5, name:"A guide to local archives", url:"https://example.org/archive/guide", folder:"Research", path:"Research / Reference", source:"Brave · Research" },
+      { id:6, name:"Travel ideas for autumn", url:"https://example.org/travel/autumn", folder:"Travel", path:"Personal / Travel", source:"Chrome · Personal" },
+      { id:7, name:"Browser storage reference", url:"https://example.org/browser/storage", folder:"Development", path:"Research / Development", source:"Brave · Research" },
+      { id:8, name:"Visual typography notes", url:"https://example.org/type/notes", folder:"Design", path:"Work / Design", source:"Edge · Work" },
+      { id:9, name:"Open source licence notes", url:"https://example.org/legal/licences", folder:"Projects", path:"Work / Projects", source:"Edge · Work" },
+      { id:10, name:"Bookbinding and collections", url:"https://example.org/library/collections", folder:"Reading", path:"Personal / Reading", source:"Chrome · Personal" }
+    ];
+    const folders = ["All bookmarks", "Design", "Projects", "Development", "Reading", "Research", "Travel"];
+    let activeFolder = "All bookmarks";
+    let selectedId = 1;
+    const $ = selector => document.querySelector(selector);
+    const esc = value => String(value).replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
+    function renderFolders() {
+      $("#folders").innerHTML = folders.map(folder => `<button type="button" class="folder" data-folder="${esc(folder)}" aria-current="${folder === activeFolder}"><span class="folder-symbol" aria-hidden="true"></span><span>${esc(folder)}</span><span class="folder-count">${folder === "All bookmarks" ? bookmarks.length : bookmarks.filter(item => item.folder === folder).length}</span></button>`).join("");
+      document.querySelectorAll("[data-folder]").forEach(button => button.addEventListener("click", () => { activeFolder = button.dataset.folder; render(); }));
+    }
+    function matchingItems() {
+      const query = $("#search").value.trim();
+      const fields = [...document.querySelectorAll('.search-tools input[type="checkbox"][value]:checked')].map(input => input.value);
+      let expression = null;
+      if (query && $("#regex").checked) { try { expression = new RegExp(query, "i"); } catch { $("#result-count").textContent = "Invalid regular expression"; return []; } }
+      const items = bookmarks.filter(item => (activeFolder === "All bookmarks" || item.folder === activeFolder) && (!query || fields.some(field => expression ? expression.test(item[field]) : item[field].toLowerCase().includes(query.toLowerCase()))));
+      const sort = $("#sort").value;
+      return items.sort((a,b) => sort === "name" ? a.name.localeCompare(b.name) : sort === "source" ? a.source.localeCompare(b.source) || a.name.localeCompare(b.name) : a.folder.localeCompare(b.folder) || a.name.localeCompare(b.name));
+    }
+    function renderResults() {
+      const items = matchingItems();
+      if (!items.some(item => item.id === selectedId)) selectedId = items[0]?.id ?? null;
+      $("#result-count").textContent = `${items.length} visible · ${activeFolder === "All bookmarks" ? "all enabled profiles" : activeFolder}`;
+      $("#result-heading").textContent = activeFolder === "All bookmarks" ? "Bookmarks" : activeFolder;
+      $("#page-title").innerHTML = `${esc(activeFolder)} <small>${activeFolder === "All bookmarks" ? "3 enabled profiles" : "Folder scope"}</small>`;
+      if (!items.length) { $("#results").innerHTML = '<p class="empty">No matching bookmarks. Try another term or clear the folder scope.</p>'; renderDetail(); return; }
+      const grouped = $("#sort").value === "folder";
+      let lastFolder = "";
+      $("#results").innerHTML = items.map(item => { const label = grouped && item.folder !== lastFolder ? `<div class="group-label">${esc(item.folder)}</div>` : ""; lastFolder = item.folder; return `${label}<button type="button" class="result" data-id="${item.id}" aria-selected="${item.id === selectedId}"><span class="item-name"><span class="item-glyph" aria-hidden="true">↗</span><span>${esc(item.name)}</span></span><span class="item-url">${esc(item.url.replace(/^https?:\/\//,""))}</span><span class="item-source">${esc(item.source)}</span></button>`; }).join("");
+      document.querySelectorAll(".result").forEach(button => button.addEventListener("click", () => { selectedId = Number(button.dataset.id); document.querySelectorAll(".result").forEach(row => row.setAttribute("aria-selected", String(row === button))); renderDetail(); }));
+      renderDetail();
+    }
+    function renderDetail() {
+      const item = bookmarks.find(bookmark => bookmark.id === selectedId);
+      $("#detail-name").textContent = item?.name || "Nothing selected";
+      $("#detail-url").textContent = item?.url || "";
+      $("#detail-url").href = item?.url || "#";
+      $("#detail-source").textContent = item?.source || "—";
+      $("#detail-path").textContent = item?.path || "—";
+      $("#open").disabled = $("#copy").disabled = !item;
+    }
+    function render() { renderFolders(); renderResults(); }
+    document.querySelectorAll("[data-switch]").forEach(button => button.addEventListener("click", () => { document.body.dataset.concept = button.dataset.switch; document.querySelectorAll("[data-switch]").forEach(option => option.setAttribute("aria-pressed", String(option === button))); }));
+    $("#search").addEventListener("input", renderResults);
+    document.querySelectorAll(".search-tools input, .search-tools select").forEach(control => control.addEventListener("change", renderResults));
+    $("#clear").addEventListener("click", () => { $("#search").value = ""; activeFolder = "All bookmarks"; render(); $("#search").focus(); });
+    $("#open").addEventListener("click", () => { const item = bookmarks.find(bookmark => bookmark.id === selectedId); if (item) window.open(item.url, "_blank", "noopener"); });
+    $("#copy").addEventListener("click", async () => { const item = bookmarks.find(bookmark => bookmark.id === selectedId); if (item) { await navigator.clipboard.writeText(item.url); $("#copy").textContent = "Copied"; setTimeout(() => $("#copy").textContent = "Copy URL", 1500); } });
+    $("#refresh").addEventListener("click", () => alert("Prototype only: source re-read is not connected."));
+    $("#settings").addEventListener("click", () => alert("Prototype only: settings are not connected."));
+    document.addEventListener("keydown", event => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "f") { event.preventDefault(); $("#search").focus(); } });
+    render();
+  </script>
+</body>
+</html>
