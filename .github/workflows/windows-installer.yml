@@ -26,8 +26,11 @@ jobs:
       - name: Check desktop types
         run: npm run typecheck
 
-      - name: Test Edge adapter
-        run: cargo test --manifest-path packages/browser-edge/Cargo.toml
+      - name: Test browser adapters
+        run: |
+          cargo test --manifest-path packages/browser-chromium/Cargo.toml
+          cargo test --manifest-path packages/browser-firefox/Cargo.toml
+          cargo test --manifest-path packages/browser-safari/Cargo.toml
 
       - name: Build NSIS installer
         run: npm run tauri -w @bookmarktivity/desktop -- build --bundles nsis

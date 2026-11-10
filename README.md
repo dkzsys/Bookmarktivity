@@ -10,7 +10,7 @@ Search across the browser profiles you choose, refine results in layers, and mov
 
 As a standalone app, Bookmarktivity works outside the browser window. It reads local bookmarks from enabled profiles without changing browser files.
 
-Microsoft Edge, Google Chrome, and Brave are local browser sources. Users choose which profiles to include; a combined workspace never merges distinct browsers or profiles. See [PRODUCT.md](PRODUCT.md) for confirmed scope and open decisions and [TECHNOLOGY.MD](TECHNOLOGY.MD) for the implementation boundaries.
+Microsoft Edge, Google Chrome, Brave, Firefox, and Safari are local browser sources. Safari is available on macOS and, for the discontinued Safari for Windows, on Windows. Users choose which profiles to include; a combined workspace never merges distinct browsers or profiles. See [PRODUCT.md](PRODUCT.md) for confirmed scope and open decisions and [TECHNOLOGY.MD](TECHNOLOGY.MD) for the implementation boundaries.
 
 **License:** [MIT](LICENSE).
 
@@ -67,7 +67,9 @@ These are the current defaults. Search, results, copy, settings, and branch shor
 
 The first usable desktop implementation is in place. Real profile access runs only in Tauri; the browser preview uses synthetic bookmarks. The current feature set is described above. An [HTML mockup of this README](docs/readme-mockup.html) shows the proposed presentation.
 
-The current adapters read clear-text Chromium `Bookmarks` and `AccountBookmarks` files. If an encrypted copy also exists, Bookmarktivity shows the clear-text snapshot with a warning that it may be older than the browser's current bookmarks. If either store exists only in encrypted form, that profile read fails and its previously loaded results are removed. Full encrypted storage support remains open in [BUG.md](BUG.md).
+Firefox bookmarks are read from an in-memory image of `places.sqlite`, including changes a running Firefox has committed but not yet merged into the main file; tags, separators, and saved history queries are omitted. Safari bookmarks are read from `Bookmarks.plist` as a single source without the Reading List, and macOS requires Full Disk Access for it. The Firefox and Safari adapters are tested with synthetic data and still need validation against real installations on each platform.
+
+The Chromium adapters read clear-text Chromium `Bookmarks` and `AccountBookmarks` files. If an encrypted copy also exists, Bookmarktivity shows the clear-text snapshot with a warning that it may be older than the browser's current bookmarks. If either store exists only in encrypted form, that profile read fails and its previously loaded results are removed. Full encrypted storage support remains open in [BUG.md](BUG.md).
 
 The native app has been compile-checked on macOS. An Apple Silicon DMG and a Windows x64 NSIS installer can be built locally; Windows installation and platform webview behavior still need validation before a public release. Linux packaging remains unvalidated.
 
@@ -84,7 +86,7 @@ Install Node.js 20+ and a Rust toolchain, then run:
 
 The browser-only preview starts with `npm run dev` and uses synthetic data. `npm run build` builds only the frontend; see below to package the desktop app.
 
-Run npm test for browser-neutral search tests, cargo test --offline --manifest-path packages/browser-chromium/Cargo.toml for synthetic browser adapter tests, and cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml for the native host.
+Run npm test for browser-neutral search tests, cargo test --manifest-path packages/browser-chromium/Cargo.toml (and the same for packages/browser-firefox and packages/browser-safari) for synthetic browser adapter tests, and cargo check --manifest-path apps/desktop/src-tauri/Cargo.toml for the native host.
 
 ## Package the desktop app
 
@@ -135,6 +137,9 @@ These local packages are unsigned. Before distributing them publicly, follow the
 | `packages/browser-chrome/` | Chrome profile discovery |
 | `packages/browser-brave/` | Brave profile discovery |
 | `packages/browser-chromium/` | Shared read-only Chromium bookmark parser |
+| `packages/browser-firefox/` | Firefox profile discovery and read-only `places.sqlite` reader |
+| `packages/browser-safari/` | Safari `Bookmarks.plist` reader |
+| `packages/browser-model/` | Browser-neutral records shared by the adapters |
 | `fixtures/` | Synthetic, non-personal browser data for development and tests |
 | `docs/architecture.md` | System boundaries and data flow |
 | `docs/decisions/` | Recorded product and architecture decisions |

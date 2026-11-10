@@ -1,65 +1,10 @@
-use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{
     fs,
     path::{Path, PathBuf},
 };
 
-#[derive(Clone, Debug, Deserialize, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Profile {
-    /// Stable source key: browser, canonical user-data directory, and profile folder.
-    pub id: String,
-    pub folder_id: String,
-    pub name: String,
-    pub browser_id: String,
-    pub user_data_dir: String,
-}
-
-#[derive(Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Source {
-    pub browser_id: String,
-    pub profile_id: String,
-    pub profile_name: String,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Folder {
-    pub kind: &'static str,
-    pub id: String,
-    pub parent_id: Option<String>,
-    pub name: String,
-    pub source: Source,
-    pub date_added: Option<i64>,
-    pub date_modified: Option<i64>,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Bookmark {
-    pub kind: &'static str,
-    pub id: String,
-    pub parent_id: Option<String>,
-    pub name: String,
-    pub url: String,
-    pub source: Source,
-    pub date_added: Option<i64>,
-    pub date_modified: Option<i64>,
-}
-
-#[derive(Serialize)]
-pub struct ProfileData {
-    pub folders: Vec<Folder>,
-    pub bookmarks: Vec<Bookmark>,
-    pub warning: Option<String>,
-}
-
-pub fn profile_key(browser_id: &str, user_data_dir: &Path, folder_id: &str) -> String {
-    serde_json::to_string(&(browser_id, user_data_dir.to_string_lossy(), folder_id))
-        .expect("profile identity is serializable")
-}
+pub use browser_model::{profile_key, Bookmark, Folder, Profile, ProfileData, Source};
 
 fn bookmark_file_exists(path: &Path) -> Result<bool, String> {
     for name in [
@@ -85,29 +30,9 @@ pub fn discover(
     candidates: Vec<PathBuf>,
     override_dir: Option<&str>,
 ) -> Result<Vec<Profile>, String> {
-    let root = if let Some(value) = override_dir.filter(|value| !value.trim().is_empty()) {
-        let path = PathBuf::from(value);
-        match fs::metadata(&path) {
-            Ok(metadata) if metadata.is_dir() => {},
-            Ok(_) => return Err(format!("The configured {browser_id} user-data path is not a directory.")),
-            Err(error) if error.kind() == std::io::ErrorKind::NotFound =>
-                return Err(format!("The configured {browser_id} user-data directory does not exist.")),
-            Err(error) => return Err(format!("Cannot access the configured {browser_id} user-data directory: {error}")),
-        }
-        path
-    } else {
-        let mut found = None;
-        for path in candidates {
-            match fs::metadata(&path) {
-                Ok(metadata) if metadata.is_dir() => { found = Some(path); break; },
-                Ok(_) => {},
-                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {},
-                Err(error) => return Err(format!("Cannot access the {browser_id} user-data directory: {error}")),
-            }
-        }
-        match found { Some(path) => path, None => return Ok(Vec::new()) }
+    let Some(root) = browser_model::resolve_root(browser_id, candidates, override_dir)? else {
+        return Ok(Vec::new());
     };
-    let root = fs::canonicalize(root).map_err(|error| error.to_string())?;
     let names = fs::read(root.join("Local State"))
         .ok()
         .and_then(|bytes| serde_json::from_slice::<Value>(&bytes).ok())
@@ -166,8 +91,7 @@ fn visit(
         .and_then(Value::as_str)
         .or_else(|| node.get("id").and_then(Value::as_str))
         .unwrap_or("");
-    let id = serde_json::to_string(&(&source.profile_id, store, raw_id))
-        .expect("node identity is serializable");
+    let id = browser_model::node_key(&source.profile_id, store, raw_id);
     let name = node
         .get("name")
         .and_then(Value::as_str)
@@ -242,11 +166,7 @@ pub fn read_profile(profile: &Profile) -> Result<ProfileData, String> {
             .get("roots")
             .and_then(Value::as_object)
             .ok_or_else(|| format!("{store} has no bookmark roots."))?;
-        let source = Source {
-            browser_id: profile.browser_id.clone(),
-            profile_id: profile.id.clone(),
-            profile_name: profile.name.clone(),
-        };
+        let source = Source::of(profile);
         for (key, node) in roots {
             if node.get("type").and_then(Value::as_str) == Some("folder") {
                 visit(node, None, store, &source, &mut output);

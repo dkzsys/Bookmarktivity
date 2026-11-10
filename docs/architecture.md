@@ -13,10 +13,13 @@ React/TypeScript UI (Tauri webview)
     +--> Narrow Tauri commands (Rust desktop host)
              |
              +-- Rust Edge, Chrome, and Brave adapters
-             +-- Shared Chromium bookmark reader
+             |       +-- Shared Chromium bookmark reader
+             +-- Rust Firefox adapter (places.sqlite)
+             +-- Rust Safari adapter (Bookmarks.plist)
+             +-- Shared browser-neutral adapter model
 ```
 
-`apps/desktop/` owns the React and TypeScript experience, Tauri host, platform packaging, Settings, and platform-specific URL opening and clipboard integration. `packages/core/` owns browser-neutral TypeScript models, query interpretation, filtering, sorting, and productivity behavior. `packages/browser-edge/`, `packages/browser-chrome/`, and `packages/browser-brave/` own browser-specific profile discovery. `packages/browser-chromium/` owns shared read-only Chromium bookmark parsing. The host passes browser-neutral records across the Rust-to-TypeScript boundary with browser and profile identity intact. Search work runs outside the UI thread.
+`apps/desktop/` owns the React and TypeScript experience, Tauri host, platform packaging, Settings, and platform-specific URL opening and clipboard integration. `packages/core/` owns browser-neutral TypeScript models, query interpretation, filtering, sorting, and productivity behavior. `packages/browser-edge/`, `packages/browser-chrome/`, and `packages/browser-brave/` own browser-specific profile discovery. `packages/browser-chromium/` owns shared read-only Chromium bookmark parsing. `packages/browser-firefox/` owns Firefox profile discovery and its read-only bookmark database reader, and `packages/browser-safari/` owns Safari's bookmark property list. `packages/browser-model/` owns the browser-neutral records and identity keys every adapter returns. The host passes browser-neutral records across the Rust-to-TypeScript boundary with browser and profile identity intact. Search work runs outside the UI thread.
 
 ## Profile model
 
@@ -29,6 +32,8 @@ On launch, browser adapters read enabled profiles into a browser-neutral model. 
 The desktop UI owns search-focus and result-focus shortcuts, double-Escape reset, and folder expansion state, including collapse-all and expand-all for the navigation tree. Those controls do not change scope or the result tree. Core determines the eligible result set: a standalone folder-name match admits the matched folder's descendants for browsing, while enabled-profile and folder-scope restrictions still apply; result refinement narrows that set. The desktop UI arranges eligible records as a tree. Folder-name matching uses a folder's own name or a bookmark's immediate containing folder name, while the full path remains attached for display. See [decision 0003](decisions/0003-keyboard-search-and-tree-navigation.md) and [decision 0004](decisions/0004-manual-reread-and-folder-name-search.md).
 
 Profile discovery accounts for operating-system differences and a configured user-data directory per browser. The active profile path can be checked at `edge://version`, `chrome://version`, or `brave://version`. The reader handles both `Bookmarks` and `AccountBookmarks` JSON within a selected profile and keeps their node IDs distinct. When encrypted and clear-text copies coexist, the reader shows the clear-text snapshot with a visible warning that it may be stale. An encrypted-only store fails the profile read to avoid a partial collection.
+
+Firefox profiles come from `profiles.ini` (relative or absolute paths), or from a scan of the chosen directory when that file is absent. The reader builds an in-memory image of `places.sqlite` plus its committed write-ahead-log frames, so bookmarks saved in a running Firefox are included and nothing is created in, or copied out of, the profile. Tags, separators, and saved history queries are not bookmarks and are omitted. Safari has one `Bookmarks.plist` per user, exposed as a single profile; the Reading List and History placeholder are omitted. See [decision 0010](decisions/0010-firefox-and-safari-sources.md).
 
 ## First integration boundary
 

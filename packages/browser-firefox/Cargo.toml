@@ -1,0 +1,9 @@
+[package]
+name = "browser-firefox"
+version = "0.4.2"
+edition = "2021"
+
+[dependencies]
+dirs = "6"
+browser-model = { path = "../browser-model" }
+rusqlite = { version = "0.41", features = ["bundled", "serialize"] }

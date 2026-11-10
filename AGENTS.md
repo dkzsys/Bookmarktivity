@@ -4,7 +4,7 @@ Bookmarktivity is a standalone, cross-platform desktop bookmark app. Read `PRODU
 
 ## Project rules
 
-- Keep browser-independent bookmark behavior in `packages/core/` and Edge-specific access in `packages/browser-edge/`.
+- Keep browser-independent bookmark behavior in `packages/core/` and browser-specific access in that browser's adapter under `packages/browser-*/` (for example `packages/browser-edge/`); shared adapter records live in `packages/browser-model/`.
 - Keep browser and profile provenance attached to bookmarks. A combined view must not silently merge distinct profiles.
 - Only include profiles the user has enabled. Treat browser profile contents as private user data.
 - Do not hard-code a single Edge profile path; profile locations can differ by operating system and configuration.

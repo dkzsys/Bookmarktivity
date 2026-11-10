@@ -7,7 +7,7 @@ Bookmarktivity combines **bookmarks** and **productivity**. It is a standalone d
 ## Confirmed scope
 
 - The app is standalone, not a browser extension. It targets macOS, Windows, and Linux; which platforms ship in the first release remains open.
-- Microsoft Edge, Google Chrome, and Brave are local browser sources. The design must allow additional integrations later.
+- Microsoft Edge, Google Chrome, Brave, Firefox, and Safari are local browser sources. Safari is offered on macOS and, for the discontinued Safari for Windows, on Windows. Safari exposes one bookmark collection per user rather than separate profiles; its Reading List is not included. The design must allow additional integrations later.
 - Users select individual local profiles in the first Settings tab. Only enabled profiles appear in the workspace or search results. The second Settings tab contains keyboard shortcuts, while the main toolbar contains the light/dark appearance toggle.
 - The app reads bookmarks directly from enabled local browser profiles. Initial access is read-only; editing browser data requires a separate, tested design.
 - On launch, the app rebuilds its bookmark model and search data in memory from enabled profiles. It does not persist a separate bookmark database initially; revisit a local database if measured performance falls short of expectations.
@@ -82,7 +82,7 @@ Keyboard navigation, selection, and shortcuts must work consistently across the 
 
 ## Open product and implementation decisions
 
-- Which of macOS, Windows, and Linux ship in the first release, and which browser integrations follow Chrome and Brave.
+- Which of macOS, Windows, and Linux ship in the first release, and which browser integrations follow Firefox and Safari.
 - Which subset of the search and keyboard workflow forms the first usable release.
 - Future query grammar beyond the first implementation recorded in [decision 0007](docs/decisions/0007-first-query-and-preview-behavior.md), including any syntax for descendants versus direct children.
 - How a folder name match interacts with folder scoping.

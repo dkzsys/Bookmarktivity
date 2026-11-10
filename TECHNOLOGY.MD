@@ -11,6 +11,9 @@ Bookmarktivity uses **Tauri 2, React, TypeScript, Vite, and a small Rust native 
 | Browser-neutral core | TypeScript in `packages/core/` | Bookmark and folder models, query parsing, filtering, scope rules, ranking, and sorting. |
 | Browser adapters | Rust in `packages/browser-edge/`, `packages/browser-chrome/`, and `packages/browser-brave/` | Discover candidate profiles for each browser. |
 | Shared Chromium reader | Rust in `packages/browser-chromium/` | Parse selected profiles' local and account bookmark JSON into browser-neutral records. |
+| Firefox adapter | Rust in `packages/browser-firefox/` | Discover profiles from `profiles.ini` and read bookmarks from an in-memory image of `places.sqlite`. |
+| Safari adapter | Rust in `packages/browser-safari/` | Read the user's `Bookmarks.plist` as a single profile. |
+| Shared adapter model | Rust in `packages/browser-model/` | Browser-neutral profile, folder, and bookmark records, identity keys, and data-directory resolution. |
 | Search execution | In-memory TypeScript worker | Build derived search data from enabled profiles and run potentially expensive search work without blocking keyboard interaction. |
 | Persistence | Small local preferences store | Save enabled profile references and app preferences; do not persist a duplicate bookmark database initially. |
 
@@ -29,13 +32,14 @@ The Rust adapter returns browser-neutral records through the desktop host. Every
 - Keep native file access behind narrow, read-only browser adapters. Do not expose broad filesystem access to the web UI.
 - Discover platform-specific profile locations and allow a configured user-data directory per browser; do not assume one fixed path. The active profile path is visible at each browser's `://version` page.
 - Identify enabled profiles by browser, canonical user-data directory, and profile folder. Read `Bookmarks` and `AccountBookmarks` when present. Warn when an encrypted copy may make clear-text results stale; fail the profile read if a store exists only in encrypted form or is unsupported, rather than returning partial results.
+- Read Firefox bookmarks without opening `places.sqlite` through SQLite in place: load the file and its write-ahead log into memory, apply committed log frames there, and query the image. Do not copy the database to disk; it also contains browsing history. See [decision 0010](docs/decisions/0010-firefox-and-safari-sources.md).
 - Read only profiles the user enabled. Do not persist or log bookmark contents unnecessarily; use synthetic or sanitized fixtures for tests.
 - Open bookmark URLs in the system default browser. A preferred-browser action remains a separate product decision.
 - Do not write to browser profile files until an editing, concurrency, backup, and recovery design is recorded and tested.
 
 ## Verification and open choices
 
-Core unit tests use synthetic trees and queries. Adapter tests use synthetic Chromium profile directories. Desktop integration tests for profile selection, provenance, refresh failures, search, and keyboard focus are still needed. Test the chosen release platforms because Tauri uses different system webviews on Windows, macOS, and Linux. Working local commands are listed in the README.
+Core unit tests use synthetic trees and queries. Adapter tests use synthetic Chromium profile directories, synthetic Firefox databases (including one held open in write-ahead-log mode), and synthetic Safari property lists. Desktop integration tests for profile selection, provenance, refresh failures, search, and keyboard focus are still needed. Test the chosen release platforms because Tauri uses different system webviews on Windows, macOS, and Linux. Working local commands are listed in the README.
 
 First-release operating systems, fuzzy ranking, performance targets, and packaging details remain open. The first query grammar and browser preview behavior are recorded in decision 0007. The initial preferences store is a small local JSON file. Electron is the fallback if cross-platform webview differences or native integration costs prove material in a working prototype.
 

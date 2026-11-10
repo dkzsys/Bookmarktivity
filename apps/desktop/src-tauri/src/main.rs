@@ -22,6 +22,10 @@ struct Preferences {
     #[serde(default)]
     brave_user_data_dir: Option<String>,
     #[serde(default)]
+    firefox_user_data_dir: Option<String>,
+    #[serde(default)]
+    safari_user_data_dir: Option<String>,
+    #[serde(default)]
     shortcuts: HashMap<String, String>,
     #[serde(default)]
     theme: Theme,
@@ -52,7 +56,8 @@ fn save_preferences(preferences: Preferences) -> Result<(), String> {
     fs::write(path, bytes).map_err(|e| e.to_string())
 }
 
-#[tauri::command]
+// Profile discovery and reads touch the disk, so they run off the main thread.
+#[tauri::command(async)]
 fn discover_profiles(
     browser_id: String,
     user_data_dir: Option<String>,
@@ -61,6 +66,8 @@ fn discover_profiles(
         "edge" => browser_edge::discover(user_data_dir.as_deref()),
         "chrome" => browser_chrome::discover(user_data_dir.as_deref()),
         "brave" => browser_brave::discover(user_data_dir.as_deref()),
+        "firefox" => browser_firefox::discover(user_data_dir.as_deref()),
+        "safari" => browser_safari::discover(user_data_dir.as_deref()),
         _ => Err("Unsupported browser source.".into()),
     }
 }
@@ -80,7 +87,14 @@ fn choose_user_data_dir(
         "edge" => "Microsoft Edge",
         "chrome" => "Google Chrome",
         "brave" => "Brave",
+        "firefox" => "Firefox",
+        "safari" => "Safari",
         _ => return Err("Unsupported browser source.".into()),
+    };
+    let purpose = match browser_id.as_str() {
+        "firefox" => "folder containing profiles.ini or your profile folders",
+        "safari" => "folder containing Bookmarks.plist",
+        _ => "user-data folder containing your profile folders",
     };
     let (sender, receiver) = mpsc::channel();
     app.run_on_main_thread(move || {
@@ -92,7 +106,7 @@ fn choose_user_data_dir(
             panel.setCanChooseFiles(false);
             panel.setAllowsMultipleSelection(false);
             let message = NSString::from_str(&format!(
-                "Choose the {browser_name} user-data folder containing your profile folders."
+                "Choose the {browser_name} {purpose}."
             ));
             panel.setMessage(Some(&message));
             if panel.runModal() != NSModalResponseOK {
@@ -118,7 +132,7 @@ fn open_full_disk_access_settings() -> Result<(), String> {
     .map_err(|error| format!("Cannot open Full Disk Access settings: {error}"))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn read_profile(profile_id: String) -> Result<ProfileData, String> {
     let preferences = load_preferences()?;
     if !preferences
@@ -139,6 +153,12 @@ fn read_profile(profile_id: String) -> Result<ProfileData, String> {
         }
         "brave" => {
             browser_brave::read_profile(&profile_id, preferences.brave_user_data_dir.as_deref())
+        }
+        "firefox" => {
+            browser_firefox::read_profile(&profile_id, preferences.firefox_user_data_dir.as_deref())
+        }
+        "safari" => {
+            browser_safari::read_profile(&profile_id, preferences.safari_user_data_dir.as_deref())
         }
         _ => Err("Unsupported browser source.".into()),
     }

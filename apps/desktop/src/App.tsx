@@ -3,12 +3,12 @@ import {
   arrangeTree, bookmarkCountsByFolder, folderBranchIds, folderPath, fuzzyWordMatch, parseQuery, type Field, type Folder, type Item, type MatchSpan,
   type ProfileData, type ScopeMode, type SearchOptions, type SearchResult, type Sort
 } from "@bookmarktivity/core";
-import { browserIds, browserNames, browserVersionPages, inTauri, native, type BrowserId, type BrowserProfile, type Preferences } from "./native";
+import { browserIds, browserNames, directoryHints, inTauri, native, type BrowserId, type BrowserProfile, type Preferences } from "./native";
 import { benchmarkSample, sampleData, sampleProfiles } from "./sample";
 import brandMark from "./assets/bookmarktivity-mark.svg";
 
-const defaultPrefs: Preferences = { enabledProfileIds: [], edgeUserDataDir: null, chromeUserDataDir: null, braveUserDataDir: null, theme: "light" };
-const directoryFor = (prefs: Preferences, browserId: BrowserId): string | null => ({ edge: prefs.edgeUserDataDir, chrome: prefs.chromeUserDataDir, brave: prefs.braveUserDataDir })[browserId];
+const defaultPrefs: Preferences = { enabledProfileIds: [], edgeUserDataDir: null, chromeUserDataDir: null, braveUserDataDir: null, firefoxUserDataDir: null, safariUserDataDir: null, theme: "light" };
+const directoryFor = (prefs: Preferences, browserId: BrowserId): string | null => ({ edge: prefs.edgeUserDataDir, chrome: prefs.chromeUserDataDir, brave: prefs.braveUserDataDir, firefox: prefs.firefoxUserDataDir, safari: prefs.safariUserDataDir })[browserId] ?? null;
 const defaultOptions: SearchOptions = {
   query: "", refine: "", fields: ["name", "url", "folder"], regex: false,
   scopeId: null, scopeMode: "descendants", sort: "relevance"
@@ -17,7 +17,7 @@ const mac = /Mac|iPhone|iPad/.test(navigator.platform);
 const profileDiscoveryError = (error: unknown) => {
   const message = String(error);
   return mac && /permission denied|operation not permitted|access denied/i.test(message)
-    ? `${message} On macOS, grant Bookmarktivity Full Disk Access in System Settings, then try Find profiles again.`
+    ? `${message} On macOS, grant Bookmarktivity Full Disk Access in System Settings, then choose Find profiles or re-read.`
     : message;
 };
 type ShortcutAction = "find" | "refine" | "results" | "copy" | "settings" | "expandAll" | "collapseAll";
@@ -209,7 +209,7 @@ export default function App() {
   const [status, setStatus] = useState("Choose a browser profile in Settings to begin.");
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [toast, setToast] = useState("");
-  const [directoryDrafts, setDirectoryDrafts] = useState<Record<BrowserId, string>>({ edge: "", chrome: "", brave: "" });
+  const [directoryDrafts, setDirectoryDrafts] = useState<Record<BrowserId, string>>({ edge: "", chrome: "", brave: "", firefox: "", safari: "" });
   const [capturingShortcut, setCapturingShortcut] = useState<ShortcutAction | null>(null);
   const [shortcutDraft, setShortcutDraft] = useState("");
   const shortcutCaptureRef = useRef<HTMLButtonElement>(null);
@@ -319,7 +319,7 @@ export default function App() {
     outcomes.forEach((outcome, index) => {
       const profile = targets[index];
       if (outcome.status === "fulfilled") updates[profile.id] = outcome.value;
-      else failures[profile.id] = String(outcome.reason);
+      else failures[profile.id] = profileDiscoveryError(outcome.reason);
     });
     setData(previous => {
       const next = { ...previous, ...updates };
@@ -355,7 +355,7 @@ export default function App() {
     void (async () => {
       try {
         const saved = await native.loadPreferences();
-        setDirectoryDrafts({ edge: saved.edgeUserDataDir || "", chrome: saved.chromeUserDataDir || "", brave: saved.braveUserDataDir || "" });
+        setDirectoryDrafts({ edge: saved.edgeUserDataDir || "", chrome: saved.chromeUserDataDir || "", brave: saved.braveUserDataDir || "", firefox: saved.firefoxUserDataDir || "", safari: saved.safariUserDataDir || "" });
         const outcomes = await Promise.allSettled(browserIds.map(browserId => native.discoverProfiles(browserId, directoryFor(saved, browserId))));
         setDiscoveryErrors(Object.fromEntries(outcomes.flatMap((outcome, index) => outcome.status === "rejected" ? [[browserIds[index], profileDiscoveryError(outcome.reason)]] : [])));
         const discovered = outcomes.flatMap(outcome => outcome.status === "fulfilled" ? outcome.value : []);
@@ -879,7 +879,7 @@ export default function App() {
       {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}>
         {mac && <div className="settings-section"><h3>macOS browser access</h3><p>To discover browser profiles automatically, add Bookmarktivity in System Settings › Privacy &amp; Security › Full Disk Access. After allowing access, return here and choose Find profiles for each browser.</p><button className="btn" onClick={() => void openFullDiskAccessSettings()} disabled={!inTauri}>Open Full Disk Access settings</button>{fullDiskAccessError && <p className="settings-note" role="alert">{fullDiskAccessError}</p>}</div>}
         {browserIds.map(browserId => <div className="settings-section" key={browserId}><h3>{browserNames[browserId]} · Local profiles</h3>
-          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} />{mac && <button className="btn" onClick={() => void chooseProfileDirectory(browserId)} disabled={!inTauri}>Choose folder…</button>}<button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>For a custom location, use the parent of the profile directory shown at {browserVersionPages[browserId]}.</small></div>
+          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} />{mac && <button className="btn" onClick={() => void chooseProfileDirectory(browserId)} disabled={!inTauri}>Choose folder…</button>}<button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>{directoryHints[browserId]}</small></div>
           {profiles.filter(profile => profile.browserId === browserId).map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">{browserId[0].toUpperCase()}</span> &nbsp;{profile.name}</strong><small>{browserNames[browserId]} · {profile.folderId}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
           {discoveryErrors[browserId] && <p className="settings-note" role="alert">{discoveryErrors[browserId]}</p>}
           {!profiles.some(profile => profile.browserId === browserId) && !discoveryErrors[browserId] && <p className="settings-note">No profiles found. Check the directory and choose Find profiles.</p>}

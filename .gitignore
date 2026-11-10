@@ -22,3 +22,6 @@ User Data/
 Bookmarks
 Bookmarks.bak
 Local State
+places.sqlite*
+profiles.ini
+Bookmarks.plist
