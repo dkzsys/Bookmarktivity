@@ -3,7 +3,8 @@ import {
   arrangeTree, bookmarkCountsByFolder, folderBranchIds, folderPath, fuzzyWordMatch, parseQuery, type Field, type Folder, type Item, type MatchSpan,
   type ProfileData, type ScopeMode, type SearchOptions, type SearchResult, type Sort
 } from "@bookmarktivity/core";
-import { browserIds, browserNames, directoryHints, inTauri, native, type BrowserId, type BrowserProfile, type Preferences } from "./native";
+import { browserIds, browserNames, browserShortNames, directoryHints, inTauri, native, type BrowserId, type BrowserProfile, type Preferences } from "./native";
+import { BrowserBadge, Icons } from "./icons";
 import { benchmarkSample, sampleData, sampleProfiles } from "./sample";
 import brandMark from "./assets/bookmarktivity-mark.svg";
 
@@ -177,8 +178,10 @@ function Highlight({ value, queries, spans }: { value: string; queries: string[]
   })}</>;
 }
 
-function Chevron() {
-  return <svg viewBox="0 0 20 20" fill="none" aria-hidden="true"><path d="m7 4 6 6-6 6" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" /></svg>;
+/** Short source label; a Safari profile named "Safari" is shown once rather than as "Safari · Safari". */
+function sourceLabel(browserId: string, profileName: string) {
+  const browser = browserShortNames[browserId as BrowserId] || browserId;
+  return profileName === browser ? browser : `${browser} · ${profileName}`;
 }
 
 export default function App() {
@@ -300,8 +303,9 @@ export default function App() {
   const tree = useMemo(() => arrangeTree(result.items, collapsedResults), [result.items, collapsedResults]);
   const visible = tree.visible;
   const virtual = visible.length > 250;
-  const rowHeight = 76;
-  const firstVisible = virtual ? Math.max(0, Math.floor(Math.max(0, resultScroll - 20) / rowHeight) - 4) : 0;
+  const rowHeight = 44;
+  const listHeadHeight = 28;
+  const firstVisible = virtual ? Math.max(0, Math.floor(Math.max(0, resultScroll - listHeadHeight) / rowHeight) - 4) : 0;
   const lastVisible = virtual ? Math.min(visible.length, firstVisible + Math.ceil(resultHeight / rowHeight) + 10) : visible.length;
   const rendered = visible.slice(firstVisible, lastVisible);
   const selected = visible.find(item => item.id === selectedId) || visible[0] || null;
@@ -309,6 +313,7 @@ export default function App() {
   const scopedFolder = options.scopeId ? folderMap.get(options.scopeId) : null;
   const hasDates = allItems.some(item => item.dateAdded != null);
   const hasModified = allItems.some(item => item.dateModified != null);
+  const totalBookmarks = useMemo(() => allItems.reduce((total, item) => total + (item.kind === "bookmark" ? 1 : 0), 0), [allItems]);
 
   const readTargets = useCallback(async (targets: BrowserProfile[], label: string) => {
     if (!targets.length) { setStatus("No enabled profiles to re-read."); return; }
@@ -535,7 +540,7 @@ export default function App() {
     const index = visible.findIndex(item => item.id === id);
     if (virtual && index >= 0 && resultsRef.current) {
       const element = resultsRef.current;
-      const targetTop = 20 + index * rowHeight;
+      const targetTop = listHeadHeight + index * rowHeight;
       if (targetTop < element.scrollTop || targetTop + rowHeight > element.scrollTop + element.clientHeight) {
         element.scrollTop = Math.max(0, targetTop - element.clientHeight / 3);
         setResultScroll(element.scrollTop);
@@ -738,9 +743,9 @@ export default function App() {
       const children = folderChildren.get(folder.id) || [];
       const open = !collapsedNav.has(folder.id);
       return <div key={folder.id}>
-        <button type="button" className={`tree-row ${options.scopeId === folder.id ? "active" : ""}`}
+        <button type="button" className={`nav-row ${options.scopeId === folder.id ? "active" : ""}`}
           role="treeitem" aria-level={level} aria-expanded={children.length ? open : undefined}
-          data-folder-id={folder.id} style={{ paddingLeft: 17 + (level - 1) * 15 }}
+          data-folder-id={folder.id} style={{ "--level": level - 1 } as React.CSSProperties}
           onContextMenu={event => openFolderMenu("nav", folder.id, event)}
           onClick={event => {
             if ((event.target as HTMLElement).closest("[data-branch]") && children.length) {
@@ -749,95 +754,122 @@ export default function App() {
               setOptions(previous => ({ ...previous, scopeId: folder.id }));
             }
           }}>
-          <span className={`branch ${open ? "open" : ""} ${children.length ? "" : "leaf"}`} data-branch aria-hidden="true"><Chevron /></span>
-          <span className="folder-label">{folder.name}</span>
-          {showBookmarkCounts && <span className="bookmark-count" title="Bookmarks including subfolders" aria-label={`${bookmarkCounts.get(folder.id) || 0} bookmarks including subfolders`}>{bookmarkCounts.get(folder.id) || 0}</span>}
+          <span className={`branch ${open ? "open" : ""} ${children.length ? "" : "leaf"}`} data-branch aria-hidden="true"><Icons.chevron /></span>
+          <span className="nav-icon"><Icons.folder /></span>
+          <span className="nav-label">{folder.name}</span>
+          {showBookmarkCounts && <span className="count" title="Bookmarks including subfolders" aria-label={`${bookmarkCounts.get(folder.id) || 0} bookmarks including subfolders`}>{bookmarkCounts.get(folder.id) || 0}</span>}
         </button>
         {open && children.map(child => renderFolder(child, level + 1))}
       </div>;
     };
-    return enabled.map(profile => <div className="profile-group" key={profile.id}>
-      <div className="profile-label"><span className="edge-icon">{profile.browserId[0].toUpperCase()}</span> {browserNames[profile.browserId]} · {profile.name}</div>
+    return enabled.map(profile => <div className="nav-group" key={profile.id}>
+      <div className="nav-group-label"><BrowserBadge browserId={profile.browserId} /><span className="nav-group-name" title={`${browserNames[profile.browserId]} · ${profile.name}`}>{sourceLabel(profile.browserId, profile.name)}</span>
+        {errors[profile.id] ? <span className="nav-flag error" title={errors[profile.id]}>Read failed</span> : data[profile.id]?.warning ? <span className="nav-flag warn" title={data[profile.id].warning || ""}>Possibly stale</span> : null}</div>
       {(folderChildren.get("") || []).filter(folder => folder.source.profileId === profile.id).map(folder => renderFolder(folder, 1))}
     </div>);
-  }, [enabled, folderChildren, collapsedNav, options.scopeId, showBookmarkCounts, bookmarkCounts]);
+  }, [enabled, folderChildren, collapsedNav, options.scopeId, showBookmarkCounts, bookmarkCounts, errors, data]);
 
-  return <div className="frame" ref={frameRef} style={{ gridTemplateColumns: `${leftSidebarOpen ? leftSidebarWidth : 0}px minmax(0, 1fr)` }}>
+  const scopeTrail = scopedFolder ? `${profileMap.get(scopedFolder.source.profileId)?.name} / ${folderPath(scopedFolder.id, folderMap).map(f => f.name).join(" / ")}` : "All bookmarks";
+  const settingsTabs = [
+    { id: "profiles" as const, label: "Local bookmark profiles", Icon: Icons.user },
+    { id: "shortcuts" as const, label: "Keyboard shortcuts", Icon: Icons.keyboard }
+  ];
+
+  return <div className={`frame ${showBookmarkCounts ? "" : "no-counts"}`} ref={frameRef} style={{ gridTemplateColumns: `${leftSidebarOpen ? leftSidebarWidth : 0}px minmax(0, 1fr)` }}>
     {leftSidebarOpen && <aside className="sidebar" id="folder-sidebar" aria-label="Folder scope">
       <div className="side-brand"><img className="brand-mark" src={brandMark} alt="" /> Bookmarktivity</div>
-      <div className="side-kicker">Workspace</div>
-      <button className={`scope-row ${!options.scopeId ? "active" : ""}`} onClick={() => updateOptions({ scopeId: null })}><span className="nav-icon">◫</span> All bookmarks <span className="count">{enabled.length}</span></button>
-      <div className="side-line" />
-      <button className="section-head section-toggle" aria-expanded={foldersOpen} onClick={() => setFoldersOpen(!foldersOpen)}><span>Your Folders</span><span className={`disclosure ${foldersOpen ? "open" : ""}`}><Chevron /></span></button>
-      {foldersOpen && <>
-        <div className="folder-actions">
-          <button onClick={() => setCollapsedNav(new Set(allItems.filter(item => item.kind === "folder").map(item => item.id)))}>Collapse all</button>
-          <button onClick={() => setCollapsedNav(new Set())}>Expand all</button>
-        </div>
-        <div role="tree" aria-label="Folders">
-          {navigationGroups}
-          {!enabled.length && <p className="sidebar-empty">No profiles enabled.</p>}
-        </div>
-      </>}
-      <div className="scope-card"><label htmlFor="scope-mode">Search selected folder</label>
-        <select id="scope-mode" value={options.scopeMode} onChange={event => updateOptions({ scopeMode: event.target.value as ScopeMode })}>
-          <option value="descendants">Including descendants</option><option value="direct">Direct contents only</option>
-        </select>
-      </div>
+      <nav className="side-scroll">
+        <div className="side-label">Workspace</div>
+        <button type="button" className={`side-row ${!options.scopeId ? "active" : ""}`} onClick={() => updateOptions({ scopeId: null })}><Icons.grid /><span>All bookmarks</span><span className="count" title="Bookmarks in enabled profiles">{totalBookmarks}</span></button>
+        <button type="button" className="side-section" aria-expanded={foldersOpen} onClick={() => setFoldersOpen(!foldersOpen)}><span>Your Folders</span><Icons.chevron /></button>
+        {foldersOpen && <>
+          <div className="folder-actions">
+            <button type="button" onClick={() => setCollapsedNav(new Set(allItems.filter(item => item.kind === "folder").map(item => item.id)))}>Collapse all</button>
+            <button type="button" onClick={() => setCollapsedNav(new Set())}>Expand all</button>
+          </div>
+          <div role="tree" aria-label="Folders">
+            {navigationGroups}
+            {!enabled.length && <p className="sidebar-empty">No profiles enabled.</p>}
+          </div>
+        </>}
+      </nav>
     </aside>}
     {leftSidebarOpen && <div className="resize-handle left-resize" role="separator" aria-label="Resize folders sidebar" aria-orientation="vertical" aria-valuemin={sidebarLimits.left.min} aria-valuemax={sidebarLimits.left.max} aria-valuenow={leftSidebarWidth} tabIndex={0} style={{ left: leftSidebarWidth - 4 }} onPointerDown={event => startSidebarResize("left", event)} onPointerMove={moveSidebarResize} onPointerUp={stopSidebarResize} onPointerCancel={stopSidebarResize} onKeyDown={event => sidebarResizeKey("left", event)} />}
     <div className="workspace">
-      <div className="titlebar"><div className="breadcrumb"><span>Workspace</span><span>›</span><strong>{scopedFolder ? `${profileMap.get(scopedFolder.source.profileId)?.name} / ${folderPath(scopedFolder.id, folderMap).map(f => f.name).join(" / ")}` : "All bookmarks"}</strong></div>
-        <div className="top-actions"><button className="btn sidebar-toggle" aria-controls={leftSidebarOpen ? "folder-sidebar" : undefined} aria-expanded={leftSidebarOpen} onClick={() => setLeftSidebarOpen(open => !open)}>{leftSidebarOpen ? "Hide folders" : "Show folders"}</button><button className="btn sidebar-toggle" aria-controls={rightSidebarOpen ? "details-sidebar" : undefined} aria-expanded={rightSidebarOpen} onClick={() => setRightSidebarOpen(open => !open)}>{rightSidebarOpen ? "Hide details" : "Show details"}</button><button className="btn sidebar-toggle" aria-pressed={showBookmarkCounts} onClick={() => setShowBookmarkCounts(show => !show)}>{showBookmarkCounts ? "Hide counts" : "Show counts"}</button><button className="btn" onClick={() => setSettingsOpen(true)}>⚙ &nbsp;Profiles & settings</button><div className="theme-toggle" role="group" aria-label="Appearance"><button type="button" aria-pressed={prefs.theme !== "dark"} className={prefs.theme !== "dark" ? "active" : ""} onClick={() => void saveTheme("light")}>☀ Light</button><button type="button" aria-pressed={prefs.theme === "dark"} className={prefs.theme === "dark" ? "active" : ""} onClick={() => void saveTheme("dark")}>☾ Dark</button></div></div>
+      <header className="toolbar">
+        <button type="button" className="icon-btn" aria-label={leftSidebarOpen ? "Hide folders" : "Show folders"} title={leftSidebarOpen ? "Hide folders" : "Show folders"} aria-controls={leftSidebarOpen ? "folder-sidebar" : undefined} aria-expanded={leftSidebarOpen} onClick={() => setLeftSidebarOpen(open => !open)}><Icons.panelLeft /></button>
+        <div className="breadcrumb"><span>Workspace</span><Icons.chevron /><strong title={scopeTrail}>{scopeTrail}</strong></div>
+        <label className="search"><Icons.search /><input ref={queryRef} type="search" aria-label="Search bookmarks" autoCorrect="off" autoCapitalize="off" spellCheck={false} placeholder="Search by name, folder or URL…" value={options.query} onChange={event => updateOptions({ query: event.target.value })} /><span className="key">{labelFor(bindings.find)}</span><button type="button" className="search-go" onClick={() => queryRef.current?.focus()}>Search</button></label>
+        <div className="tool-group">
+          <div className="reread-control"><button type="button" className="btn" disabled={busy || !enabled.length || !inTauri} onClick={() => void refresh(enabled, "All enabled sources")}><Icons.refresh />{busy ? "Re-reading…" : "Re-read all sources"}</button><button type="button" className="btn" disabled={!enabled.length} aria-label="Choose re-read target" aria-haspopup="menu" aria-expanded={refreshOpen} onClick={() => setRefreshOpen(!refreshOpen)}><Icons.caret /></button>
+            {refreshOpen && <div className="menu reread-menu" role="menu"><div className="menu-label">By source</div>{browserIds.map(browserId => {
+              const targets = enabled.filter(profile => profile.browserId === browserId);
+              return targets.length ? <button type="button" role="menuitem" key={browserId} onClick={() => void refresh(targets, browserNames[browserId])}><BrowserBadge browserId={browserId} />{browserNames[browserId]} <small>{targets.length} enabled</small></button> : null;
+            })}<div className="menu-rule" /><div className="menu-label">By profile</div>{enabled.map(profile => <button type="button" role="menuitem" key={profile.id} onClick={() => void refresh([profile], profile.name)}><BrowserBadge browserId={profile.browserId} />{browserNames[profile.browserId]} · {profile.name}</button>)}</div>}
+          </div>
+          <span className="tool-sep" />
+          <button type="button" className="icon-btn" aria-pressed={showBookmarkCounts} aria-label={showBookmarkCounts ? "Hide counts" : "Show counts"} title={showBookmarkCounts ? "Hide counts" : "Show counts"} onClick={() => setShowBookmarkCounts(show => !show)}><Icons.hash /></button>
+          <button type="button" className="icon-btn" aria-label={rightSidebarOpen ? "Hide details" : "Show details"} title={rightSidebarOpen ? "Hide details" : "Show details"} aria-controls={rightSidebarOpen ? "details-sidebar" : undefined} aria-expanded={rightSidebarOpen} onClick={() => setRightSidebarOpen(open => !open)}><Icons.panelRight /></button>
+          <button type="button" className="icon-btn" aria-label="Profiles & settings" title={`Profiles & settings (${labelFor(bindings.settings)})`} onClick={() => setSettingsOpen(true)}><Icons.settings /></button>
+          <div className="segmented" role="group" aria-label="Appearance"><button type="button" aria-label="Light" title="Light" aria-pressed={prefs.theme !== "dark"} onClick={() => void saveTheme("light")}><Icons.sun /></button><button type="button" aria-label="Dark" title="Dark" aria-pressed={prefs.theme === "dark"} onClick={() => void saveTheme("dark")}><Icons.moon /></button></div>
+        </div>
+      </header>
+      <div className="filterbar">
+        <div className="filter-group" role="group" aria-label="Search in"><span className="filter-label">Search in</span>
+          {(["name", "url", "folder"] as Field[]).map(field => <label className="pill" key={field}><input type="checkbox" checked={options.fields.includes(field)} onChange={event => updateOptions({ fields: event.target.checked ? [...options.fields, field] : options.fields.filter(value => value !== field) })} /><span>{field === "folder" ? "Folder name" : field === "url" ? "URL" : "Name"}</span></label>)}
+          <label className="pill"><input type="checkbox" checked={options.regex} onChange={event => updateOptions({ regex: event.target.checked })} /><span>Regex</span></label>
+        </div>
+        <div className="syntax"><button type="button" className="link" aria-expanded={syntaxOpen} onClick={() => setSyntaxOpen(!syntaxOpen)}><Icons.help />Syntax guide</button>
+          {syntaxOpen && <div className="syntax-menu"><strong>Query ideas</strong><p><code>name:"Project plan"</code> matches that exact text anywhere inside a longer name, even mid-word.</p><p><code>url:docs.example.com AND name:guide</code> combines fields.</p><p><code>OR</code> broadens a query. <code>folder:</code> matches the immediate folder name. The folder list sets scope.</p><p>Regex mode treats the full primary query as an expression across the selected fields.</p></div>}
+        </div>
+        <div className="filter-group" role="radiogroup" aria-label="Search selected folder"><span className="filter-label">Search selected folder</span>
+          {([["descendants", "Including descendants"], ["direct", "Direct contents only"]] as [ScopeMode, string][]).map(([mode, label]) => <label className="pill" key={mode}><input type="radio" name="scope-mode" checked={options.scopeMode === mode} onChange={() => updateOptions({ scopeMode: mode })} /><span>{label}</span></label>)}
+        </div>
+        <span className="filter-spacer" />
+        <div className="filter-group"><label className="filter-label" htmlFor="sort">Sort by</label><select id="sort" value={options.sort} onChange={event => updateOptions({ sort: event.target.value as Sort })}><option value="relevance">Relevance</option><option value="alphabetical">Alphabetical</option>{hasDates && <option value="created">Date created</option>}{hasModified && <option value="modified">Date modified</option>}</select></div>
       </div>
       <div className="content" ref={contentRef} style={{ gridTemplateColumns: `minmax(0, 1fr) ${rightSidebarOpen ? rightSidebarWidth : 0}px` }}><main className="main" ref={mainRef}>
-        <header className="top">
-          <div className="search-panel"><div className="search-row"><div className="search-wrap"><span className="search-icon">⌕</span><input ref={queryRef} type="search" aria-label="Search bookmarks" autoCorrect="off" placeholder="Search by name, folder or URL…" value={options.query} onChange={event => updateOptions({ query: event.target.value })} /><span className="key">{labelFor(bindings.find)}</span></div><button className="btn btn-primary" onClick={() => queryRef.current?.focus()}>Search ↵</button></div>
-            <div className="search-options"><span className="option-label">Search in</span>
-              {(["name", "url", "folder"] as Field[]).map(field => <label className="check" key={field}><input type="checkbox" checked={options.fields.includes(field)} onChange={event => updateOptions({ fields: event.target.checked ? [...options.fields, field] : options.fields.filter(value => value !== field) })} />{field === "folder" ? "Folder name" : field === "url" ? "URL" : "Name"}</label>)}
-              <span className="divider" /><label className="check"><input type="checkbox" checked={options.regex} onChange={event => updateOptions({ regex: event.target.checked })} />Regex</label>
-              <span className="syntax"><button className="inline-button" aria-expanded={syntaxOpen} onClick={() => setSyntaxOpen(!syntaxOpen)}>Syntax guide ↗</button></span>
-            </div>
-          </div>
-          {syntaxOpen && <div className="syntax-menu show"><strong>Query ideas</strong><p><code>name:"Project plan"</code> matches that exact text anywhere inside a longer name, even mid-word.</p><p><code>url:docs.example.com AND name:guide</code> combines fields.</p><p><code>OR</code> broadens a query. <code>folder:</code> matches the immediate folder name. The folder list sets scope.</p><p>Regex mode treats the full primary query as an expression across the selected fields.</p></div>}
-        </header>
-        <div className="result-head"><div><h2>{options.query ? "Search results" : scopedFolder?.name || "All bookmarks"}</h2><div className="caption">{searching ? "Searching bookmarks…" : result.error || `${result.items.length} matching items · ${visible.length} visible · Folders first`}</div></div>
-          <div className="result-tools"><div className="reread-control"><button className="btn" disabled={busy || !enabled.length || !inTauri} onClick={() => void refresh(enabled, "All enabled sources")}>↻ &nbsp;{busy ? "Re-reading…" : "Re-read all sources"}</button><button className="btn" disabled={!enabled.length} aria-label="Choose re-read target" aria-expanded={refreshOpen} onClick={() => setRefreshOpen(!refreshOpen)}>▾</button>
-            {refreshOpen && <div className="reread-menu"><div className="reread-menu-label">By source</div>{browserIds.map(browserId => {
-              const targets = enabled.filter(profile => profile.browserId === browserId);
-              return targets.length ? <button key={browserId} onClick={() => void refresh(targets, browserNames[browserId])}>{browserNames[browserId]} <small>{targets.length} enabled</small></button> : null;
-            })}<div className="menu-rule" /><div className="reread-menu-label">By profile</div>{enabled.map(profile => <button key={profile.id} onClick={() => void refresh([profile], profile.name)}>{browserNames[profile.browserId]} · {profile.name}</button>)}</div>}
-          </div><div className="sort-wrap"><label htmlFor="sort">Sort by</label><select id="sort" value={options.sort} onChange={event => updateOptions({ sort: event.target.value as Sort })}><option value="relevance">Relevance</option><option value="alphabetical">Alphabetical</option>{hasDates && <option value="created">Date created</option>}{hasModified && <option value="modified">Date modified</option>}</select></div></div>
+        <div className="result-head">
+          <div className="result-heading"><h1>{options.query ? "Search results" : scopedFolder?.name || "All bookmarks"}</h1><div className="caption">{searching ? "Searching bookmarks…" : result.error || `${result.items.length} matching items · ${visible.length} visible · Folders first`}</div></div>
+          <label className="refine"><Icons.filter /><input ref={refineRef} type="search" aria-label="Search within results" autoCorrect="off" autoCapitalize="off" spellCheck={false} placeholder="Search within these results…" value={options.refine} onChange={event => updateOptions({ refine: event.target.value })} /><span className="key">{labelFor(bindings.refine)}</span></label>
         </div>
-        <div className="source-status" role="status">{status}{Object.entries(errors).map(([id, error]) => <div key={id}>{profileMap.get(id) ? `${browserNames[profileMap.get(id)!.browserId]} · ${profileMap.get(id)!.name}` : id}: {error}</div>)}{snapshotWarnings.map(profile => <div className="source-warning" key={profile.id}>{browserNames[profile.browserId]} · {profile.name}: {data[profile.id].warning}</div>)}</div>
-        <div className="active-bar"><span className="chip blue">{enabled.length} enabled {enabled.length === 1 ? "profile" : "profiles"}</span>{snapshotWarnings.length > 0 && <span className="chip">{snapshotWarnings.length} possibly stale {snapshotWarnings.length === 1 ? "profile" : "profiles"}</span>}{scopedFolder && <span className="chip">{scopedFolder.name} · {options.scopeMode === "direct" ? "direct only" : "with descendants"}</span>}{options.query && <span className="chip">Query: {options.query}</span>}{options.refine && <span className="chip">Within results: {options.refine}</span>}{result.matchedFolderIds.length > 0 && <span className="chip">Folder matches include contents</span>}<span className="chip">{options.regex ? "Regex mode" : `Fields: ${options.fields.join(", ") || "none"}`}</span></div>
-        <label className="refine"><span>⌕</span><input ref={refineRef} type="search" aria-label="Search within results" autoCorrect="off" placeholder="Search within these results…" value={options.refine} onChange={event => updateOptions({ refine: event.target.value })} /><span className="key">{labelFor(bindings.refine)}</span></label>
+        <div className="source-status" role="status">
+          <p className="status-line"><Icons.ok /><span>{status}</span></p>
+          {Object.entries(errors).map(([id, error]) => <p className="status-item error" key={id}><Icons.error /><span><strong>{profileMap.get(id) ? `${browserNames[profileMap.get(id)!.browserId]} · ${profileMap.get(id)!.name}` : id}</strong> {error}</span></p>)}
+          {snapshotWarnings.map(profile => <p className="status-item warn" key={profile.id}><Icons.warning /><span><strong>{browserNames[profile.browserId]} · {profile.name}</strong> {data[profile.id].warning}</span></p>)}
+        </div>
+        <div className="active-bar"><span className="chip accent">{enabled.length} enabled {enabled.length === 1 ? "profile" : "profiles"}</span>{snapshotWarnings.length > 0 && <span className="chip warn">{snapshotWarnings.length} possibly stale {snapshotWarnings.length === 1 ? "profile" : "profiles"}</span>}{scopedFolder && <span className="chip">{scopedFolder.name} · {options.scopeMode === "direct" ? "direct only" : "with descendants"}</span>}{options.query && <span className="chip">Query: {options.query}</span>}{options.refine && <span className="chip">Within results: {options.refine}</span>}{result.matchedFolderIds.length > 0 && <span className="chip">Folder matches include contents</span>}<span className="chip">{options.regex ? "Regex mode" : `Fields: ${options.fields.join(", ") || "none"}`}</span></div>
         <div className={`result-list ${virtual ? "virtual" : ""}`} role="tree" aria-label="Search results" aria-busy={searching} tabIndex={0} ref={resultsRef} onScroll={event => setResultScroll(event.currentTarget.scrollTop)}>
-          {!visible.length ? <div className="empty"><strong>{searching ? "Searching bookmarks" : result.error ? "Check the search query" : enabled.length ? "No matches in this scope" : "Choose a browser profile"}</strong>{searching ? "Checking the enabled profiles…" : result.error || (enabled.length ? "Try another query, field, folder, or enabled profile." : "Open Profiles & settings to include local bookmarks.")}</div> : <>
-            <div className="list-head"><span>Item / location</span><span>Source</span></div>
+          {!visible.length ? <div className="empty"><Icons.search /><strong>{searching ? "Searching bookmarks" : result.error ? "Check the search query" : enabled.length ? "No matches in this scope" : "Choose a browser profile"}</strong><span>{searching ? "Checking the enabled profiles…" : result.error || (enabled.length ? "Try another query, field, folder, or enabled profile." : "Open Profiles & settings to include local bookmarks.")}</span></div> : <>
+            <div className="list-head" aria-hidden="true"><span className="lh-name">Item</span><span className="lh-path">Location</span><span className="lh-count">Bookmarks</span><span className="lh-source">Source</span></div>
             <div className={virtual ? "virtual-space" : "result-rows"} style={virtual ? { height: visible.length * rowHeight } : undefined}>
             {rendered.map((item, offset) => {
               const isFolder = item.kind === "folder";
               const childCount = tree.children.get(item.id)?.length || 0;
               const expanded = !collapsedResults.has(item.id);
               const path = folderPath(item.parentId, folderMap).map(f => f.name).join(" / ");
-              const sub = isFolder ? path || "Top level folder" : `${path} · ${item.url}`;
               const textQueries = options.regex ? [options.refine] : [options.query, options.refine];
               const regexMatch = options.regex ? result.regexHighlights?.get(item.id) : undefined;
               const titleSpans: MatchSpan[] = [...(regexMatch?.name || []), ...(isFolder ? regexMatch?.folder || [] : [])];
-              const subSpans: MatchSpan[] = [];
+              const pathSpans: MatchSpan[] = [];
               if (!isFolder && regexMatch?.folder?.length) {
                 const parentName = folderMap.get(item.parentId || "")?.name || "";
-                if (parentName) for (const [start, end] of regexMatch.folder) subSpans.push([path.length - parentName.length + start, path.length - parentName.length + end]);
+                if (parentName) for (const [start, end] of regexMatch.folder) pathSpans.push([path.length - parentName.length + start, path.length - parentName.length + end]);
               }
-              if (!isFolder && regexMatch?.url?.length) for (const [start, end] of regexMatch.url) subSpans.push([sub.length - item.url.length + start, sub.length - item.url.length + end]);
-              return <button className={`result ${selected?.id === item.id ? "selected" : ""}`} key={item.id}
+              const rowStyle = { "--level": item.level - 1, ...(virtual ? { position: "absolute", top: (firstVisible + offset) * rowHeight, left: 0, right: 0, height: rowHeight } : {}) } as React.CSSProperties;
+              return <button type="button" className={`row ${item.kind} ${selected?.id === item.id ? "selected" : ""}`} key={item.id}
                 role="treeitem" aria-level={item.level} aria-expanded={isFolder && childCount ? expanded : undefined} aria-selected={selected?.id === item.id}
-                data-result-id={item.id} style={virtual ? { position: "absolute", top: (firstVisible + offset) * rowHeight, width: "100%", height: 68, paddingLeft: 13 + (item.level - 1) * 19 } : { paddingLeft: 13 + (item.level - 1) * 19 }}
+                data-result-id={item.id} style={rowStyle}
                 onContextMenu={isFolder ? event => openFolderMenu("results", item.id, event) : undefined}
                 onClick={event => { setSelectedId(item.id); if ((event.target as HTMLElement).closest("[data-result-branch]") && isFolder && childCount) setResultCollapsed(item.id, expanded); focusResult(item.id); }}
                 onDoubleClick={() => { setSelectedId(item.id); void openItem(item); }}>
-                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Chevron /></span><span className={`item-icon ${isFolder ? "folder" : ""}`}>{isFolder ? "▱" : "↗"}</span><span className="item-body"><span className="item-title"><Highlight value={item.name} queries={textQueries} spans={titleSpans} /></span><span className="item-sub"><Highlight value={sub} queries={textQueries} spans={subSpans} /></span></span>{isFolder && showBookmarkCounts && <span className="bookmark-count" title="Bookmarks including subfolders" aria-label={`${bookmarkCounts.get(item.id) || 0} bookmarks including subfolders`}>{bookmarkCounts.get(item.id) || 0}</span>}<span className="source">{browserNames[item.source.browserId as BrowserId]} · {item.source.profileName}</span>
+                <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Icons.chevron /></span>
+                <span className="row-icon">{isFolder ? <Icons.folder /> : <Icons.bookmark />}</span>
+                <span className="row-title"><Highlight value={item.name} queries={textQueries} spans={titleSpans} /></span>
+                {!isFolder && <span className="row-url"><Highlight value={item.url} queries={textQueries} spans={regexMatch?.url} /></span>}
+                <span className="row-path">{path ? <Highlight value={path} queries={textQueries} spans={pathSpans} /> : "Top-level folder"}</span>
+                <span className="count row-count">{isFolder && showBookmarkCounts ? <span title="Bookmarks including subfolders" aria-label={`${bookmarkCounts.get(item.id) || 0} bookmarks including subfolders`}>{bookmarkCounts.get(item.id) || 0}</span> : null}</span>
+                <span className="source" title={`${browserNames[item.source.browserId as BrowserId]} · ${item.source.profileName}`}><BrowserBadge browserId={item.source.browserId} /><span className="source-text">{sourceLabel(item.source.browserId, item.source.profileName)}</span></span>
               </button>;
             })}
             </div>
@@ -846,14 +878,19 @@ export default function App() {
       </main>
       {rightSidebarOpen && <div className="resize-handle right-resize" role="separator" aria-label="Resize details sidebar" aria-orientation="vertical" aria-valuemin={sidebarLimits.right.min} aria-valuemax={sidebarLimits.right.max} aria-valuenow={rightSidebarWidth} tabIndex={0} style={{ right: rightSidebarWidth - 4 }} onPointerDown={event => startSidebarResize("right", event)} onPointerMove={moveSidebarResize} onPointerUp={stopSidebarResize} onPointerCancel={stopSidebarResize} onKeyDown={event => sidebarResizeKey("right", event)} />}
       {rightSidebarOpen && <aside className="detail" id="details-sidebar" aria-label="Selected item details"><div className="detail-head">{selected ? `Selected ${selected.kind}` : "Details"}</div>{selected ? <>
-        <div className="detail-icon">{selected.kind === "folder" ? "▱" : "↗"}</div><h2>{selected.name}</h2>{selected.kind === "bookmark" && <span className="detail-url">{selected.url}</span>}
-        <div className="metadata"><div><span className="meta-label">Source</span><span className="meta-value"><span className="edge-icon">{selected.source.browserId[0].toUpperCase()}</span> &nbsp;{browserNames[selected.source.browserId as BrowserId]} · {selected.source.profileName}{data[selected.source.profileId]?.warning ? " · Possibly stale snapshot" : ""}</span></div><div><span className="meta-label">Full folder path</span><div className="path">{selectedPath.map(folder => <span key={folder.id}>{folder.name}</span>)}</div></div><div><span className="meta-label">Type</span><span className="meta-value">{selected.kind === "folder" ? "Folder" : "Bookmark"}</span></div></div>
-        <div className="detail-actions"><button className="btn btn-primary" onClick={() => void openItem(selected)}>{selected.kind === "folder" ? "Open folder" : "Open in default browser"} ↗</button>{selected.kind === "bookmark" && <button className="btn" onClick={() => void copyItem(selected)}>Copy URL</button>}</div>
-      </> : <p className="detail-empty">Select a folder or bookmark to see its source and full path.</p>}<div className="read-only">Read only. Bookmarktivity does not change browser bookmark files.</div></aside>}
+        <div className="detail-icon">{selected.kind === "folder" ? <Icons.folder /> : <Icons.bookmark />}</div><h2>{selected.name}</h2>{selected.kind === "bookmark" && <span className="detail-url">{selected.url}</span>}
+        <div className="detail-actions"><button type="button" className="btn btn-primary" onClick={() => void openItem(selected)}>{selected.kind === "folder" ? "Open folder" : "Open in default browser"}<Icons.external /></button>{selected.kind === "bookmark" && <button type="button" className="btn" onClick={() => void copyItem(selected)}><Icons.copy />Copy URL</button>}</div>
+        <dl className="metadata">
+          <div><dt>Source</dt><dd className="meta-source"><BrowserBadge browserId={selected.source.browserId} />{browserNames[selected.source.browserId as BrowserId]} · {selected.source.profileName}{data[selected.source.profileId]?.warning && <span className="stale">Possibly stale snapshot</span>}</dd></div>
+          <div><dt>Full folder path</dt><dd><ol className="path">{selectedPath.map(folder => <li key={folder.id}>{folder.name}</li>)}</ol></dd></div>
+          <div><dt>Type</dt><dd>{selected.kind === "folder" ? "Folder" : "Bookmark"}</dd></div>
+          <div><dt>Date added</dt><dd>{selected.dateAdded != null ? new Date(selected.dateAdded).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" }) : "Not provided by this browser"}</dd></div>
+        </dl>
+      </> : <p className="detail-empty">Select a folder or bookmark to see its source and full path.</p>}<div className="read-only"><Icons.lock /><span>Read only. Bookmarktivity does not change browser bookmark files.</span></div></aside>}
       </div>
       <footer className="footer"><span>Enabled profiles only · Read-only browser access</span><div className="shortcuts"><span><span className="key">{labelFor(bindings.results)}</span> Results</span><span><span className="key">← →</span> Folders</span><span><span className="key">Esc Esc</span> Reset</span><span><span className="key">{labelFor(bindings.copy)}</span> Copy URL</span></div></footer>
     </div>
-    {folderMenu && <div className="folder-context-menu" role="menu" aria-label={`Folder actions for ${folderMap.get(folderMenu.id)?.name || "selected folder"}`} ref={folderMenuRef} style={{ left: folderMenu.x, top: folderMenu.y }} onKeyDown={event => {
+    {folderMenu && <div className="menu folder-context-menu" role="menu" aria-label={`Folder actions for ${folderMap.get(folderMenu.id)?.name || "selected folder"}`} ref={folderMenuRef} style={{ left: folderMenu.x, top: folderMenu.y }} onKeyDown={event => {
       if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
       event.preventDefault();
       event.stopPropagation();
@@ -861,40 +898,44 @@ export default function App() {
       const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
       buttons[(index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
     }}>
-      <button role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, false)}>Expand all <span className="key">{labelFor(bindings.expandAll)}</span></button>
-      <button role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, true)}>Collapse all <span className="key">{labelFor(bindings.collapseAll)}</span></button>
+      <button type="button" role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, false)}>Expand all <span className="key">{labelFor(bindings.expandAll)}</span></button>
+      <button type="button" role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, true)}>Collapse all <span className="key">{labelFor(bindings.collapseAll)}</span></button>
     </div>}
-    {settingsOpen && <div className="modal-backdrop show" role="dialog" aria-modal="true" aria-labelledby="settings-title"><div className="modal"><div className="modal-top"><div><h2 id="settings-title">Profiles & settings</h2><p>Choose which local profiles to include and customize keyboard shortcuts.</p></div><button className="close" aria-label="Close settings" onClick={() => setSettingsOpen(false)}>×</button></div>
-      <div className="settings-tabs" role="tablist" aria-label="Settings sections" onKeyDown={event => {
-        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-        event.preventDefault();
-        const next = event.key === "Home" ? "profiles" : event.key === "End" ? "shortcuts" : settingsTab === "profiles" ? "shortcuts" : "profiles";
-        setSettingsTab(next);
-        setCapturingShortcut(null);
-        event.currentTarget.querySelector<HTMLElement>(`#settings-tab-${next}`)?.focus();
-      }}>
-        <button id="settings-tab-profiles" type="button" role="tab" aria-selected={settingsTab === "profiles"} aria-controls="settings-panel-profiles" tabIndex={settingsTab === "profiles" ? 0 : -1} onClick={() => { setSettingsTab("profiles"); setCapturingShortcut(null); }}>Local bookmark profiles</button>
-        <button id="settings-tab-shortcuts" type="button" role="tab" aria-selected={settingsTab === "shortcuts"} aria-controls="settings-panel-shortcuts" tabIndex={settingsTab === "shortcuts" ? 0 : -1} onClick={() => setSettingsTab("shortcuts")}>Keyboard shortcuts</button>
+    {settingsOpen && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-title" onPointerDown={event => { if (event.target === event.currentTarget) setSettingsOpen(false); }}><div className="modal">
+      <nav className="modal-nav"><h2 id="settings-title">Profiles & settings</h2>
+        <div className="settings-tabs" role="tablist" aria-orientation="vertical" aria-label="Settings sections" onKeyDown={event => {
+          if (!["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown", "Home", "End"].includes(event.key)) return;
+          event.preventDefault();
+          const next = event.key === "Home" ? "profiles" : event.key === "End" ? "shortcuts" : settingsTab === "profiles" ? "shortcuts" : "profiles";
+          setSettingsTab(next);
+          setCapturingShortcut(null);
+          event.currentTarget.querySelector<HTMLElement>(`#settings-tab-${next}`)?.focus();
+        }}>
+          {settingsTabs.map(({ id, label, Icon }) => <button key={id} id={`settings-tab-${id}`} type="button" role="tab" aria-selected={settingsTab === id} aria-controls={`settings-panel-${id}`} tabIndex={settingsTab === id ? 0 : -1} onClick={() => { setSettingsTab(id); setCapturingShortcut(null); }}><Icon />{label}</button>)}
+        </div>
+      </nav>
+      <div className="modal-body">
+        <div className="modal-top"><div><h3>{settingsTab === "profiles" ? "Local bookmark profiles" : "Keyboard shortcuts"}</h3><p>Choose which local profiles to include and customize keyboard shortcuts.</p></div><button type="button" className="icon-btn" aria-label="Close settings" onClick={() => setSettingsOpen(false)}><Icons.close /></button></div>
+        {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}>
+          {mac && <div className="settings-section fda"><h4><Icons.lock />macOS browser access</h4><p>To discover browser profiles automatically, add Bookmarktivity in System Settings › Privacy &amp; Security › Full Disk Access. After allowing access, return here and choose Find profiles for each browser.</p><button type="button" className="btn" onClick={() => void openFullDiskAccessSettings()} disabled={!inTauri}>Open Full Disk Access settings</button>{fullDiskAccessError && <p className="settings-note error" role="alert">{fullDiskAccessError}</p>}</div>}
+          {browserIds.map(browserId => <div className="settings-section" key={browserId}><h4><BrowserBadge browserId={browserId} />{browserNames[browserId]} · Local profiles</h4>
+            <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" autoCapitalize="off" spellCheck={false} placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} />{mac && <button type="button" className="btn" onClick={() => void chooseProfileDirectory(browserId)} disabled={!inTauri}>Choose folder…</button>}<button type="button" className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>{directoryHints[browserId]}</small></div>
+            {profiles.filter(profile => profile.browserId === browserId).map(profile => <label className="profile-setting" key={profile.id}><span><strong>{profile.name}</strong><small>{browserNames[browserId]} · {profile.folderId}</small>{errors[profile.id] && <em className="profile-error">{errors[profile.id]}</em>}</span><input type="checkbox" role="switch" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
+            {discoveryErrors[browserId] && <p className="settings-note error" role="alert">{discoveryErrors[browserId]}</p>}
+            {!profiles.some(profile => profile.browserId === browserId) && !discoveryErrors[browserId] && <p className="settings-note">No profiles found. Check the directory and choose Find profiles.</p>}
+          </div>)}
+        </div>}
+        {settingsTab === "shortcuts" && <div id="settings-panel-shortcuts" role="tabpanel" aria-labelledby="settings-tab-shortcuts" className="settings-panel" tabIndex={0}><div className="settings-section">
+          {(Object.keys(shortcutNames) as ShortcutAction[]).map(action => <div key={action}>
+            <div className="shortcut-line"><span>{shortcutNames[action]}</span><button type="button" ref={capturingShortcut === action ? shortcutCaptureRef : undefined} className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => { setCapturingShortcut(action); setShortcutDraft(bindings[action]); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>
+            {capturingShortcut === action && <div className="shortcut-editor"><label>Or type a shortcut<input aria-label={`${shortcutNames[action]} shortcut`} autoCorrect="off" value={shortcutDraft} onChange={event => setShortcutDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void applyShortcut(action, shortcutDraft); } }} placeholder={mac ? "Cmd+G" : "Ctrl+G"} /></label><button type="button" className="btn" onClick={() => void applyShortcut(action, shortcutDraft)}>Save</button><button type="button" className="btn" onClick={() => { setCapturingShortcut(null); setShortcutDraft(""); }}>Cancel</button></div>}
+          </div>)}
+          <div className="shortcut-line"><span>Reset filters</span><span className="key">Esc Esc</span></div>
+          <div className="shortcut-line"><span>Open selected item</span><span className="key">Enter</span></div>
+          <button type="button" className="inline-button" onClick={() => { void saveShortcuts({}); setCapturingShortcut(null); setShortcutDraft(""); }}>Restore defaults</button>
+        </div></div>}
       </div>
-      {settingsTab === "profiles" && <div id="settings-panel-profiles" role="tabpanel" aria-labelledby="settings-tab-profiles" className="settings-panel" tabIndex={0}>
-        {mac && <div className="settings-section"><h3>macOS browser access</h3><p>To discover browser profiles automatically, add Bookmarktivity in System Settings › Privacy &amp; Security › Full Disk Access. After allowing access, return here and choose Find profiles for each browser.</p><button className="btn" onClick={() => void openFullDiskAccessSettings()} disabled={!inTauri}>Open Full Disk Access settings</button>{fullDiskAccessError && <p className="settings-note" role="alert">{fullDiskAccessError}</p>}</div>}
-        {browserIds.map(browserId => <div className="settings-section" key={browserId}><h3>{browserNames[browserId]} · Local profiles</h3>
-          <div className="directory-row"><label htmlFor={`${browserId}-dir`}>{browserNames[browserId]} user-data directory</label><div><input id={`${browserId}-dir`} autoCorrect="off" placeholder="Use system default" value={directoryDrafts[browserId]} onChange={event => setDirectoryDrafts(previous => ({ ...previous, [browserId]: event.target.value }))} />{mac && <button className="btn" onClick={() => void chooseProfileDirectory(browserId)} disabled={!inTauri}>Choose folder…</button>}<button className="btn" onClick={() => void findProfiles(browserId)} disabled={!inTauri}>Find profiles</button></div><small>{directoryHints[browserId]}</small></div>
-          {profiles.filter(profile => profile.browserId === browserId).map(profile => <label className="profile-setting" key={profile.id}><span><strong><span className="edge-icon">{browserId[0].toUpperCase()}</span> &nbsp;{profile.name}</strong><small>{browserNames[browserId]} · {profile.folderId}</small></span><input type="checkbox" checked={prefs.enabledProfileIds.includes(profile.id)} onChange={event => void toggleProfile(profile.id, event.target.checked)} /></label>)}
-          {discoveryErrors[browserId] && <p className="settings-note" role="alert">{discoveryErrors[browserId]}</p>}
-          {!profiles.some(profile => profile.browserId === browserId) && !discoveryErrors[browserId] && <p className="settings-note">No profiles found. Check the directory and choose Find profiles.</p>}
-        </div>)}
-      </div>}
-      {settingsTab === "shortcuts" && <div id="settings-panel-shortcuts" role="tabpanel" aria-labelledby="settings-tab-shortcuts" className="settings-panel" tabIndex={0}><div className="settings-section"><h3>Keyboard shortcuts</h3>
-        {(Object.keys(shortcutNames) as ShortcutAction[]).map(action => <div key={action}>
-          <div className="shortcut-line"><span>{shortcutNames[action]}</span><button ref={capturingShortcut === action ? shortcutCaptureRef : undefined} className={`shortcut-capture ${capturingShortcut === action ? "capturing" : ""}`} onClick={() => { setCapturingShortcut(action); setShortcutDraft(bindings[action]); }}>{capturingShortcut === action ? "Press shortcut…" : labelFor(bindings[action])}</button></div>
-          {capturingShortcut === action && <div className="shortcut-editor"><label>Or type a shortcut<input aria-label={`${shortcutNames[action]} shortcut`} autoCorrect="off" value={shortcutDraft} onChange={event => setShortcutDraft(event.target.value)} onKeyDown={event => { if (event.key === "Enter") { event.preventDefault(); void applyShortcut(action, shortcutDraft); } }} placeholder={mac ? "Cmd+G" : "Ctrl+G"} /></label><button className="btn" onClick={() => void applyShortcut(action, shortcutDraft)}>Save</button><button className="btn" onClick={() => { setCapturingShortcut(null); setShortcutDraft(""); }}>Cancel</button></div>}
-        </div>)}
-        <div className="shortcut-line"><span>Reset filters</span><span className="key">Esc Esc</span></div>
-        <div className="shortcut-line"><span>Open selected item</span><span className="key">Enter</span></div>
-        <button className="inline-button" onClick={() => { void saveShortcuts({}); setCapturingShortcut(null); setShortcutDraft(""); }}>Restore defaults</button>
-      </div></div>}
     </div></div>}
-    {toast && <div className="toast show" role="status">{toast}</div>}
+    {toast && <div className="toast" role="status">{toast}</div>}
   </div>;
 }

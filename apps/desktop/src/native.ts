@@ -4,6 +4,7 @@ import type { ProfileData } from "@bookmarktivity/core";
 export type BrowserId = "edge" | "chrome" | "brave" | "firefox" | "safari";
 
 export const browserNames: Record<BrowserId, string> = { edge: "Microsoft Edge", chrome: "Google Chrome", brave: "Brave", firefox: "Firefox", safari: "Safari" };
+export const browserShortNames: Record<BrowserId, string> = { edge: "Edge", chrome: "Chrome", brave: "Brave", firefox: "Firefox", safari: "Safari" };
 export const directoryHints: Record<BrowserId, string> = {
   edge: "For a custom location, use the parent of the profile directory shown at edge://version.",
   chrome: "For a custom location, use the parent of the profile directory shown at chrome://version.",

@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bookmarktivity · 03 Facets</title>
+<style>
+:root{
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  --display:ui-rounded,"SF Pro Rounded","Segoe UI Variable Display","Segoe UI",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  --bg:#f5f2ec;--surface:#fffdf9;--sunken:#efebe3;--line:#e6e0d5;--line-strong:#d6cfc2;
+  --text:#22201c;--muted:#655f55;--faint:#8f887c;
+  --accent:#0f6e66;--accent-hover:#0b5c55;--accent-soft:#e0efeb;--accent-text:#0b5f58;--on-accent:#fff;
+  --sel:#e3f0ec;--sel-line:#9fcfc5;--hover:#f6f2ea;
+  --warn-bg:#fdf3dc;--warn:#80530a;--err-bg:#fbe9e6;--err:#a8321f;--ok:#2d6a4f;
+  --mark-color:#fde18d;--radius:12px;--shadow:0 1px 2px rgba(60,45,20,.06),0 4px 14px rgba(60,45,20,.06);--shadow-lg:0 24px 70px rgba(40,30,10,.22);
+  --mark:var(--accent);
+}
+:root[data-theme="dark"]{
+  --bg:#161412;--surface:#1f1c19;--sunken:#191714;--line:#312d27;--line-strong:#433d35;
+  --text:#f0ebe3;--muted:#b4ab9d;--faint:#8b8376;
+  --accent:#55c0b0;--accent-hover:#72d0c2;--accent-soft:rgba(85,192,176,.14);--accent-text:#7fd5c8;--on-accent:#0b1f1c;
+  --sel:rgba(85,192,176,.13);--sel-line:#2f6b62;--hover:#24211d;
+  --warn-bg:rgba(240,190,90,.11);--warn:#efc56f;--err-bg:rgba(255,130,110,.1);--err:#ff9a88;--ok:#82cfa6;
+  --mark-color:rgba(240,200,90,.3);--shadow:0 1px 2px rgba(0,0,0,.3);--shadow-lg:0 24px 70px rgba(0,0,0,.6);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:13.5px/1.5 var(--font);color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+.icon,.icon svg{display:inline-flex;width:16px;height:16px;flex:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+mark{background:var(--mark-color);color:inherit;border-radius:3px;padding:0 1px}
+.badge{display:inline-grid;place-items:center;flex:none;width:18px;height:18px;border-radius:50%;color:#fff;font:700 10px/1 var(--font)}
+.badge[data-browser=edge]{background:#127a82}.badge[data-browser=chrome]{background:#c46a2c}.badge[data-browser=brave]{background:#b4472f}.badge[data-browser=firefox]{background:#7553c4}.badge[data-browser=safari]{background:#2d6cc7}
+.kbd{display:inline-block;padding:1px 6px;border:1px solid var(--line-strong);border-radius:5px;background:var(--surface);color:var(--muted);font:11px/1.5 var(--mono);white-space:nowrap}
+
+.app{height:calc(100vh - var(--mock-bar,0px));display:grid;grid-template-rows:auto minmax(0,1fr) auto;overflow:hidden}
+.header{display:flex;align-items:center;gap:16px;height:58px;padding:0 18px;border-bottom:1px solid var(--line)}
+.brand{display:flex;align-items:center;gap:9px;font:700 16px var(--display);letter-spacing:-.01em;white-space:nowrap}
+.brand svg{width:26px;height:26px}
+.breadcrumb{display:flex;align-items:center;gap:6px;min-width:0;padding-left:16px;border-left:1px solid var(--line);color:var(--faint);white-space:nowrap}
+.breadcrumb strong{min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-weight:600}
+.crumb-sep{display:flex}.crumb-sep svg{width:12px;height:12px}
+.header .spacer{flex:1}
+.toggle{display:inline-flex;align-items:center;gap:6px;height:32px;padding:0 11px;border:1px solid transparent;border-radius:999px;background:none;color:var(--muted);font-size:13px;white-space:nowrap}
+.toggle:hover{background:var(--sunken)}
+.toggle[aria-pressed=true]{border-color:var(--line-strong);background:var(--surface);color:var(--text)}
+.toggle[aria-pressed=true] .icon{color:var(--accent)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;height:34px;padding:0 14px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);font-size:13px;font-weight:550;white-space:nowrap}
+.btn:hover{border-color:var(--accent);color:var(--accent-text)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn svg,.btn .icon{width:15px;height:15px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover);color:var(--on-accent)}
+.theme{display:inline-flex;padding:3px;border-radius:999px;background:var(--sunken)}
+.theme button{display:grid;place-items:center;width:30px;height:26px;border:0;border-radius:999px;background:none;color:var(--muted)}
+.theme button[aria-pressed=true]{background:var(--surface);color:var(--text);box-shadow:var(--shadow)}
+
+.body{min-height:0;display:grid;grid-template-columns:auto minmax(0,1fr) auto}
+.left{position:relative;width:var(--left-size,290px);min-height:0;padding:16px 8px 16px 16px;display:flex;flex-direction:column;gap:14px}
+.left>.card{flex:none}
+.left>.folders-card{flex:1 1 auto;min-height:160px;display:flex;flex-direction:column}
+.folders-card .tree-wrap{flex:1;min-height:0;overflow:auto;padding-bottom:6px}
+.card{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow)}
+.card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 14px 6px}
+.card-title{margin:0;font:650 14px var(--display)}
+.folders-card{padding-bottom:8px}
+.hide-folders .folders-card{display:none}
+.side-row,.nav-row{width:100%;display:flex;align-items:center;gap:8px;min-height:30px;padding:4px 10px;border:0;border-radius:8px;background:none;text-align:left}
+.side-row:hover,.nav-row:hover{background:var(--hover)}
+.side-row.active,.nav-row.active{background:var(--sel);color:var(--accent-text);font-weight:600}
+.tree-wrap{padding:0 6px}
+.side-row{margin:0 6px;width:calc(100% - 12px);font-weight:550}
+.side-row .icon{color:var(--accent)}
+.count{margin-left:auto;min-width:22px;padding:0 6px;border-radius:999px;background:var(--sunken);color:var(--muted);font-size:11.5px;text-align:center;font-variant-numeric:tabular-nums}
+.no-counts .count{display:none}
+.side-section{display:flex;align-items:center;gap:6px;margin:10px 6px 0;padding:4px 10px;border:0;background:none;color:var(--faint);font-size:12px;font-weight:650}
+.side-section .icon{width:13px;height:13px;transition:transform .15s}
+.side-section[aria-expanded=true] .icon{transform:rotate(90deg)}
+.folder-actions{display:flex;gap:4px;padding:0 16px 4px}
+.folder-actions button{border:0;background:none;padding:2px 6px;border-radius:6px;color:var(--accent-text);font-size:12.5px}
+.folder-actions button:hover{background:var(--sunken)}
+.nav-group{margin-top:8px}
+.nav-group-label{display:flex;align-items:center;gap:8px;padding:6px 10px 3px;color:var(--muted);font-size:12.5px;font-weight:600}
+.nav-group-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-flag{margin-left:auto;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;white-space:nowrap}
+.nav-flag.warn{background:var(--warn-bg);color:var(--warn)}.nav-flag.error{background:var(--err-bg);color:var(--err)}
+.nav-row{padding-left:calc(6px + var(--level)*14px)}
+.nav-branch,.row-branch{display:grid;place-items:center;width:18px;height:18px;flex:none;border-radius:5px;color:var(--faint)}
+.nav-branch:hover,.row-branch:hover{background:var(--sunken)}
+.nav-branch svg,.row-branch svg{width:12px;height:12px;transition:transform .15s}
+.nav-branch.open svg,.row-branch.open svg{transform:rotate(90deg)}
+.nav-branch.leaf,.row-branch.leaf{visibility:hidden}
+.nav-icon{display:flex;color:var(--faint)}.nav-icon svg{width:15px;height:15px}
+.nav-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-empty{padding:8px 16px;color:var(--muted)}
+.facets{padding-bottom:6px}
+.facet{padding:8px 14px 11px;border-top:1px solid var(--line)}
+.facet:first-of-type{border-top:0}
+.facet legend,.facet-label{padding:0;margin-bottom:6px;color:var(--faint);font-size:12px;font-weight:650}
+.facet fieldset{margin:0;padding:0;border:0}
+.facet fieldset{display:flex;flex-wrap:wrap;gap:5px}
+.facet legend{width:100%}
+.opt{position:relative;display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border:1px solid var(--line-strong);border-radius:999px;color:var(--muted);font-size:12.5px;cursor:pointer}
+.opt input{position:absolute;inset:0;margin:0;opacity:0;cursor:pointer}
+.opt:has(input:checked){border-color:var(--accent);background:var(--accent-soft);color:var(--accent-text);font-weight:600}
+.opt:has(input[type=checkbox]:checked)::before{content:"✓";font-size:11px}
+.opt:has(input:focus-visible){outline:2px solid var(--accent);outline-offset:2px}
+.opt small{display:none}
+.syntax-wrap{position:relative;margin-top:4px}
+.link{display:inline-flex;align-items:center;gap:5px;padding:0;border:0;background:none;color:var(--accent-text);font-size:12.5px;font-weight:550}
+.link svg,.link .icon{width:14px;height:14px}
+.syntax{position:absolute;left:0;top:calc(100% + 8px);z-index:20;width:340px;padding:16px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-lg);color:var(--muted);font-size:13px;line-height:1.55}
+.syntax strong{color:var(--text);font-family:var(--display)}.syntax p{margin:8px 0 0}
+.syntax code{padding:1px 5px;border-radius:5px;background:var(--sunken);color:var(--text);font:12px var(--mono)}
+.resize{position:absolute;top:0;bottom:0;width:8px;cursor:col-resize;z-index:3}
+.resize::after{content:"";position:absolute;top:16px;bottom:16px;left:3px;width:2px;border-radius:2px}
+.resize:hover::after{background:var(--accent)}
+.left .resize{right:-4px}.detail .resize{left:-4px}
+
+.center{min-width:0;min-height:0;overflow:auto;padding:16px 20px 24px}
+.search-card{padding:14px 16px 16px}
+.step{display:grid;grid-template-columns:28px minmax(0,1fr);gap:4px 12px;align-items:center}
+.step-num{display:grid;place-items:center;width:26px;height:26px;border-radius:50%;background:var(--accent);color:var(--on-accent);font:700 13px var(--display)}
+.step.second .step-num{background:var(--sunken);color:var(--muted);border:1px solid var(--line-strong)}
+.step-label{color:var(--faint);font-size:12px;font-weight:650}
+.step-line{width:2px;height:12px;margin-left:12px;background:var(--line-strong)}
+.field{grid-column:2;display:flex;align-items:center;gap:8px;padding:0 6px 0 14px;border:1px solid var(--line-strong);border-radius:12px;background:var(--surface)}
+.field:focus-within{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.field .icon{color:var(--faint)}
+.field input{flex:1;min-width:0;border:0;outline:0;background:none}
+.field.primary{height:50px}.field.primary input{font-size:16px}
+.field.secondary{height:40px;border-style:dashed}
+.step .step-label{grid-column:2}
+.results-head{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px 16px;margin:20px 2px 10px}
+.results-head h1{margin:0;font:700 21px/1.2 var(--display);letter-spacing:-.01em}
+.caption{color:var(--muted);font-size:12.5px;margin-top:3px}
+.results-head .spacer{flex:1}
+.reread{position:relative;display:flex}
+.reread .btn:first-child{border-radius:999px 0 0 999px}
+.reread .btn:last-of-type{border-left:0;border-radius:0 999px 999px 0;padding:0 10px}
+.menu{position:absolute;z-index:20;min-width:260px;padding:6px;border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow-lg)}
+.reread .menu{right:0;top:calc(100% + 8px)}
+.menu-label{padding:8px 10px 4px;color:var(--faint);font-size:12px;font-weight:650}
+.menu button{width:100%;display:flex;align-items:center;gap:9px;padding:7px 10px;border:0;border-radius:8px;background:none;text-align:left}
+.menu button:hover,.menu button:focus-visible{background:var(--sel);color:var(--accent-text);outline:0}
+.menu small{margin-left:auto;color:var(--faint);font-size:12px}
+.menu .kbd{margin-left:auto}
+.menu-rule{height:1px;margin:5px 8px;background:var(--line)}
+#status{display:grid;gap:6px;margin-bottom:10px}
+#status p{display:flex;align-items:flex-start;gap:9px;margin:0;font-size:13px}
+#status svg{width:16px;height:16px;flex:none;margin-top:2px}
+.status-line{color:var(--muted)}.status-line svg{color:var(--ok)}
+.status-item{padding:9px 12px;border-radius:10px}
+.status-item.error{background:var(--err-bg);color:var(--err)}
+.status-item.warn{background:var(--warn-bg);color:var(--warn)}
+.status-item strong{display:block;font-weight:650}
+#chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px}
+.chip{padding:3px 10px;border-radius:999px;background:var(--sunken);color:var(--muted);font-size:12.5px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.chip.accent{background:var(--accent-soft);color:var(--accent-text);font-weight:600}
+.chip.warn{background:var(--warn-bg);color:var(--warn)}
+
+#results{border:1px solid var(--line);border-radius:var(--radius);background:var(--surface);box-shadow:var(--shadow);overflow:hidden}
+.list-head{display:flex;gap:12px;padding:8px 16px;border-bottom:1px solid var(--line);color:var(--faint);font-size:12px;font-weight:650}
+.lh-name{flex:1}.lh-path{display:none}.lh-count{width:64px;text-align:right}.lh-source{width:170px}
+.row{display:flex;align-items:center;gap:10px;min-height:58px;padding:8px 16px 8px calc(10px + var(--level)*22px);border-bottom:1px solid var(--line);cursor:default}
+.row:last-child{border-bottom:0}
+.row:hover{background:var(--hover)}
+.row.selected{background:var(--sel);box-shadow:inset 3px 0 var(--accent)}
+.row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.row-icon{display:grid;place-items:center;width:34px;height:34px;flex:none;border-radius:9px;background:var(--sunken);color:var(--muted)}
+.row-icon svg{width:17px;height:17px}
+.row.folder .row-icon{background:#f7ead0;color:#a46a12}
+:root[data-theme=dark] .row.folder .row-icon{background:rgba(239,185,85,.13);color:#efbf63}
+.row-main{flex:1;min-width:0;display:grid;grid-template-columns:auto minmax(0,1fr);column-gap:8px;align-items:baseline}
+.row-title{grid-column:1/3;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-path{color:var(--faint);font-size:12.5px;white-space:nowrap;max-width:280px;overflow:hidden;text-overflow:ellipsis}
+.row-url{color:var(--muted);font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.bookmark .row-path::after{content:"  ·";color:var(--line-strong)}
+.row-count{width:64px;text-align:right}
+.row-count:empty{visibility:hidden}
+.source{display:flex;align-items:center;gap:7px;width:170px;min-width:0;color:var(--muted);font-size:12.5px}
+.source-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.no-counts .row-count,.no-counts .lh-count{display:none}
+.row-count.count,.lh-count.count{min-width:0;padding:0;border-radius:0;background:none;color:var(--faint)}
+.row-count.count{font-weight:600;color:var(--muted)}
+.empty{display:grid;justify-items:center;gap:4px;padding:56px 16px;color:var(--muted);text-align:center}
+.empty svg{width:30px;height:30px;color:var(--faint);margin-bottom:6px}
+.empty strong{color:var(--text);font:650 16px var(--display)}
+
+.detail{position:relative;width:var(--right-size,340px);min-height:0;overflow:auto;padding:16px 16px 20px 6px}
+.hide-details .detail{display:none}
+.detail-card{padding:18px}
+.detail-kicker{color:var(--faint);font-size:12px;font-weight:650}
+.detail-icon{display:grid;place-items:center;width:48px;height:48px;margin:14px 0 12px;border-radius:14px;background:var(--accent-soft);color:var(--accent)}
+.detail-icon svg{width:24px;height:24px}
+.detail-title{margin:0 0 6px;font:700 20px/1.25 var(--display);overflow-wrap:anywhere}
+.detail-url{display:block;color:var(--accent-text);font-size:13px;text-decoration:none;overflow-wrap:anywhere}
+.detail-url:hover{text-decoration:underline}
+.detail-actions{display:grid;gap:8px;margin:16px 0}
+.detail-actions .btn{width:100%}
+.meta{margin:0;display:grid;gap:14px;padding-top:14px;border-top:1px solid var(--line)}
+.meta dt{color:var(--faint);font-size:12px;font-weight:650;margin-bottom:4px}
+.meta dd{margin:0;overflow-wrap:anywhere}
+.meta-source{display:flex;align-items:center;flex-wrap:wrap;gap:7px}
+.stale{padding:1px 8px;border-radius:999px;background:var(--warn-bg);color:var(--warn);font-size:11.5px;font-weight:600}
+.crumbs{display:flex;flex-wrap:wrap;gap:6px;margin:0;padding:0;list-style:none}
+.crumbs li{padding:2px 9px;border-radius:999px;background:var(--sunken);font-size:12.5px}
+.crumbs li:last-child{background:var(--accent-soft);color:var(--accent-text);font-weight:600}
+.detail-empty{color:var(--muted)}
+.read-only{display:flex;gap:8px;margin-top:12px;padding:10px 12px;border-radius:10px;background:var(--sunken);color:var(--muted);font-size:12.5px}
+.read-only svg{width:15px;height:15px;flex:none;margin-top:2px}
+
+.footer{display:flex;align-items:center;justify-content:space-between;gap:12px;height:34px;padding:0 18px;border-top:1px solid var(--line);color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden}
+.footer .shortcuts{display:flex;gap:16px}
+.footer .kbd{margin-right:5px}
+
+#ctx{position:fixed;z-index:40}
+.toast{position:fixed;left:50%;bottom:50px;z-index:60;transform:translateX(-50%);max-width:min(560px,90vw);padding:10px 16px;border-radius:999px;background:var(--text);color:var(--bg);font-size:13px;box-shadow:var(--shadow-lg)}
+
+/* Settings as a slide-over drawer */
+.backdrop{position:fixed;inset:var(--mock-bar,0px) 0 0 0;z-index:50;display:flex;justify-content:flex-end;background:rgba(30,24,15,.32)}
+.modal{width:min(600px,100%);height:100%;display:flex;flex-direction:column;background:var(--surface);box-shadow:var(--shadow-lg)}
+.modal-head{display:flex;align-items:flex-start;gap:12px;padding:20px 22px 0}
+.modal-head h2{margin:0;font:700 20px var(--display)}
+.modal-head p{margin:4px 0 0;color:var(--muted);font-size:13px}
+.close{display:grid;place-items:center;flex:none;width:32px;height:32px;margin-left:auto;border:0;border-radius:50%;background:var(--sunken);color:var(--muted)}
+.tabs{display:flex;gap:20px;padding:0 22px;margin-top:16px;border-bottom:1px solid var(--line)}
+.tabs button{padding:10px 0;border:0;border-bottom:2px solid transparent;background:none;color:var(--muted);font-weight:600}
+.tabs button[aria-selected=true]{border-color:var(--accent);color:var(--text)}
+#settings-panel{flex:1;overflow:auto;padding:4px 22px 24px}
+.set-section{margin-top:16px;padding:16px;border:1px solid var(--line);border-radius:var(--radius)}
+.set-section h3{display:flex;align-items:center;gap:8px;margin:0 0 12px;font:650 15px var(--display)}
+.set-section h3 svg{width:16px;height:16px;color:var(--accent)}
+.set-section p{margin:0 0 12px;color:var(--muted);font-size:13px}
+.fda{background:var(--accent-soft);border-color:transparent}
+.dir-row{display:grid;gap:6px;margin-bottom:10px;font-size:13px}
+.dir-row label{color:var(--muted);font-weight:550}
+.dir-controls{display:flex;flex-wrap:wrap;gap:6px}
+.dir-controls input{flex:1 1 200px;min-width:0;height:34px;padding:0 12px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface)}
+.dir-row small{color:var(--faint);font-size:12.5px}
+.profile-toggle{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+.pt-text{flex:1;min-width:0;display:grid;gap:2px}
+.pt-text strong{display:flex;align-items:center;gap:8px;font-weight:600}
+.pt-text small{color:var(--muted);font-size:12.5px}
+.pt-error{color:var(--err);font-style:normal;font-size:12.5px}
+input[role=switch]{appearance:none;flex:none;width:38px;height:22px;margin:0;border-radius:999px;background:var(--line-strong);position:relative;cursor:pointer;transition:background .15s}
+input[role=switch]::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .15s}
+input[role=switch]:checked{background:var(--accent)}
+input[role=switch]:checked::after{transform:translateX(16px)}
+.set-note{padding:10px 12px;border-radius:10px;background:var(--sunken)}
+.sc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:9px 0;border-top:1px solid var(--line)}
+.sc-row:first-of-type{border-top:0}
+.sc-capture{min-width:80px;padding:4px 12px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface);font:12.5px var(--mono)}
+.sc-capture.capturing{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-text)}
+.sc-editor{display:flex;flex-wrap:wrap;align-items:flex-end;gap:6px;padding:0 0 12px}
+.sc-editor label{flex:1 1 200px;display:grid;gap:5px;color:var(--muted);font-size:12.5px}
+.sc-editor input{height:34px;padding:0 12px;border:1px solid var(--line-strong);border-radius:999px;background:var(--surface)}
+.link-button{margin-top:14px;border:0;background:none;padding:0;color:var(--accent-text);font-weight:600}
+@media (max-width:1250px){.source{width:130px}.lh-source{width:130px}.toggle span:not(.icon){display:none}}
+</style>
+</head>
+<body>
+<div id="app" class="app">
+  <header class="header">
+    <div class="brand"><i data-icon="mark"></i>Bookmarktivity</div>
+    <div class="breadcrumb" id="breadcrumb"></div>
+    <span class="spacer"></span>
+    <button type="button" class="toggle" data-action="toggle-folders"><i data-icon="panelLeft"></i><span data-on="Hide folders" data-off="Show folders"></span></button>
+    <button type="button" class="toggle" data-action="toggle-details"><i data-icon="panelRight"></i><span data-on="Hide details" data-off="Show details"></span></button>
+    <button type="button" class="toggle" data-action="toggle-counts"><i data-icon="hash"></i><span data-on="Hide counts" data-off="Show counts"></span></button>
+    <button type="button" class="btn" data-action="settings-open"><i data-icon="settings"></i>Profiles &amp; settings</button>
+    <div class="theme" role="group" aria-label="Appearance"><button type="button" data-action="theme" data-value="light" title="Light"><i data-icon="sun"></i></button><button type="button" data-action="theme" data-value="dark" title="Dark"><i data-icon="moon"></i></button></div>
+  </header>
+
+  <div class="body">
+    <aside class="left" id="folder-sidebar" aria-label="Folders and filters">
+      <section class="card folders-card" aria-label="Folder scope">
+        <div class="card-head"><h2 class="card-title">Folders</h2></div>
+        <button type="button" class="side-row" id="all-row" data-action="scope-all"><i data-icon="grid"></i><span>All bookmarks</span><span class="count" id="all-count"></span></button>
+        <button type="button" class="side-section" data-action="folder-section" aria-expanded="true"><i data-icon="chevron"></i>Your Folders</button>
+        <div class="folder-actions" id="folder-actions"><button type="button" data-action="nav-collapse-all">Collapse all</button><button type="button" data-action="nav-expand-all">Expand all</button></div>
+        <div class="tree-wrap" id="nav-tree" role="tree" aria-label="Folders"></div>
+      </section>
+      <section class="card facets" aria-label="Search options">
+        <div class="card-head"><h2 class="card-title">Refine by</h2></div>
+        <div class="facet"><fieldset><legend>Search in</legend>
+          <label class="opt"><input type="checkbox" name="field" value="name">Name</label>
+          <label class="opt"><input type="checkbox" name="field" value="url">URL</label>
+          <label class="opt"><input type="checkbox" name="field" value="folder">Folder name<small>immediate folder</small></label></fieldset></div>
+        <div class="facet"><fieldset><legend>Matching</legend>
+          <label class="opt"><input type="radio" name="mode" value="text">Text &amp; fuzzy</label>
+          <label class="opt"><input type="radio" name="mode" value="regex">Regex</label></fieldset>
+          <div class="syntax-wrap" style="margin-top:8px"><button type="button" class="link" data-action="syntax" aria-expanded="false"><i data-icon="help"></i>Syntax guide</button>
+            <div class="syntax" id="syntax" hidden><strong>Query ideas</strong><p><code>name:"Project plan"</code> matches that exact text anywhere inside a longer name, even mid-word.</p><p><code>url:docs.example.com AND name:guide</code> combines fields.</p><p><code>OR</code> broadens a query. <code>folder:</code> matches the immediate folder name. The folder list sets scope.</p><p>Regex mode treats the full primary query as an expression across the selected fields.</p></div></div></div>
+        <div class="facet"><fieldset><legend>Search selected folder</legend>
+          <label class="opt"><input type="radio" name="scope-mode" value="descendants">Including descendants</label>
+          <label class="opt"><input type="radio" name="scope-mode" value="direct">Direct contents only</label></fieldset></div>
+        <div class="facet"><fieldset><legend>Sort by</legend>
+          <label class="opt"><input type="radio" name="sort" value="relevance">Relevance</label>
+          <label class="opt"><input type="radio" name="sort" value="alphabetical">Alphabetical</label>
+          <label class="opt"><input type="radio" name="sort" value="created">Date created</label>
+          <label class="opt"><input type="radio" name="sort" value="modified">Date modified</label></fieldset></div>
+      </section>
+      <div class="resize" role="separator" aria-label="Resize folders sidebar" tabindex="0" data-resize="left" data-panel="#folder-sidebar"></div>
+    </aside>
+
+    <main class="center">
+      <section class="card search-card" aria-label="Search">
+        <div class="step"><span class="step-num">1</span><span class="step-label">Search all enabled profiles</span>
+          <label class="field primary"><i data-icon="search"></i><input id="q" type="search" aria-label="Search bookmarks" autocomplete="off" spellcheck="false" placeholder="Search by name, folder or URL…"><span class="kbd" data-key="find"></span><button type="button" class="btn primary" data-action="focus-search">Search ↵</button></label></div>
+        <div class="step-line"></div>
+        <div class="step second"><span class="step-num">2</span><span class="step-label">Narrow within these results (keeps your query and folder)</span>
+          <label class="field secondary"><i data-icon="layers"></i><input id="refine" type="search" aria-label="Search within results" autocomplete="off" spellcheck="false" placeholder="Search within these results…"><span class="kbd" data-key="refine"></span></label></div>
+      </section>
+
+      <div class="results-head">
+        <div><h1 id="result-title"></h1><div class="caption" id="result-caption"></div></div>
+        <span class="spacer"></span>
+        <div class="reread"><button type="button" class="btn" data-action="reread-all"><i data-icon="refresh"></i><span data-label>Re-read all sources</span></button><button type="button" class="btn" data-action="reread-toggle" aria-label="Choose re-read target" aria-haspopup="menu" aria-expanded="false"><i data-icon="caret"></i></button><div class="menu" id="reread-menu" role="menu" hidden></div></div>
+      </div>
+      <div id="status" role="status"></div>
+      <div id="chips"></div>
+      <div id="results" role="tree" aria-label="Search results" tabindex="0"></div>
+    </main>
+
+    <aside class="detail" id="details-sidebar" aria-label="Selected item details">
+      <div class="resize" role="separator" aria-label="Resize details sidebar" tabindex="0" data-resize="right" data-panel="#details-sidebar"></div>
+      <div class="card detail-card"><div class="detail-kicker" id="detail-kicker"></div><div id="detail-body"></div></div>
+      <div class="read-only"><i data-icon="lock"></i><span>Read only. Bookmarktivity does not change browser bookmark files.</span></div>
+    </aside>
+  </div>
+
+  <footer class="footer"><span>Enabled profiles only · Read-only browser access</span><span class="shortcuts"><span><span class="kbd" data-key="results"></span>Results</span><span><span class="kbd">← →</span>Folders</span><span><span class="kbd">Esc Esc</span>Reset</span><span><span class="kbd" data-key="copy"></span>Copy URL</span></span></footer>
+</div>
+
+<div class="menu" id="ctx" role="menu" aria-label="Folder actions" hidden></div>
+<div class="backdrop" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+  <div class="modal">
+    <div class="modal-head"><div><h2 id="settings-title">Profiles &amp; settings</h2><p>Choose which local profiles to include and customize keyboard shortcuts.</p></div><button type="button" class="close" data-action="settings-close" aria-label="Close settings"><i data-icon="close"></i></button></div>
+    <div class="tabs" role="tablist" aria-label="Settings sections"><button type="button" role="tab" data-action="tab" data-tab="profiles">Local bookmark profiles</button><button type="button" role="tab" data-action="tab" data-tab="shortcuts">Keyboard shortcuts</button></div>
+    <div id="settings-panel" role="tabpanel"></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="mock.js"></script>
+</body>
+</html>

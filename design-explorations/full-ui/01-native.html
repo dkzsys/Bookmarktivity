@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bookmarktivity · 01 Native</title>
+<style>
+:root{
+  --font:-apple-system,BlinkMacSystemFont,"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono",Menlo,Consolas,monospace;
+  --bg:#ffffff;--chrome:#f6f6f8;--chrome-2:#efeff2;--line:#e4e4e9;--line-strong:#d2d2d9;
+  --text:#1c1c1f;--muted:#64646c;--faint:#8b8b93;
+  --accent:#2f62d8;--accent-hover:#2554c4;--accent-soft:#e9effc;--accent-text:#2152c2;--on-accent:#fff;
+  --sel:#dfe8fb;--sel-line:#b9cdf6;--hover:#f3f4f7;
+  --warn-bg:#fff7e1;--warn-line:#f1d48a;--warn:#7d5200;--err-bg:#fdeeed;--err-line:#f3c1bd;--err:#b3261e;
+  --mark-color:#ffe48a;--shadow:0 12px 40px rgba(20,20,40,.16),0 2px 6px rgba(20,20,40,.08);
+  --mark:var(--accent);
+}
+:root[data-theme="dark"]{
+  --bg:#1d1d20;--chrome:#252528;--chrome-2:#2c2c30;--line:#36363b;--line-strong:#46464c;
+  --text:#f1f1f3;--muted:#a7a7b0;--faint:#85858e;
+  --accent:#5e8dff;--accent-hover:#7aa1ff;--accent-soft:#25324f;--accent-text:#9ab8ff;--on-accent:#0b1430;
+  --sel:#2a3b61;--sel-line:#3f5994;--hover:#29292d;
+  --warn-bg:#3a2f14;--warn-line:#5e4a1c;--warn:#f0c46a;--err-bg:#3d1d1c;--err-line:#6b2b28;--err:#ff9b93;
+  --mark-color:#6b5420;--shadow:0 16px 48px rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font:13px/1.45 var(--font);color:var(--text);background:var(--bg);-webkit-font-smoothing:antialiased}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+[hidden]{display:none!important}
+.icon,.icon svg,.badge svg{display:inline-flex;width:16px;height:16px;flex:none}
+:focus-visible{outline:2px solid var(--accent);outline-offset:1px}
+mark{background:var(--mark-color);color:inherit;border-radius:2px;padding:0 1px}
+.badge{display:inline-grid;place-items:center;flex:none;width:16px;height:16px;border-radius:4px;color:#fff;font:700 10px/1 var(--font)}
+.badge[data-browser=edge]{background:#0e7c86}.badge[data-browser=chrome]{background:#c4622d}.badge[data-browser=brave]{background:#b9412f}.badge[data-browser=firefox]{background:#7650c9}.badge[data-browser=safari]{background:#2f6fd0}
+.kbd{display:inline-block;min-width:18px;padding:1px 5px;border:1px solid var(--line-strong);border-bottom-width:2px;border-radius:4px;background:var(--bg);color:var(--muted);font:11px/1.4 var(--mono);text-align:center;white-space:nowrap}
+
+/* Shell */
+.app{height:calc(100vh - var(--mock-bar,0px));display:grid;grid-template-columns:auto minmax(0,1fr);overflow:hidden}
+.sidebar{position:relative;width:var(--left-size,252px);display:flex;flex-direction:column;min-height:0;background:var(--chrome);border-right:1px solid var(--line)}
+.hide-folders .sidebar{display:none}
+.brand{height:52px;flex:none;display:flex;align-items:center;gap:9px;padding:0 16px;font-weight:650;font-size:14px;letter-spacing:-.01em}
+.brand svg{width:22px;height:22px}
+.side-scroll{flex:1;min-height:0;overflow:auto;padding:4px 8px 16px}
+.side-label{padding:10px 8px 4px;color:var(--faint);font-size:11px;font-weight:600}
+.side-row,.nav-row{width:100%;display:flex;align-items:center;gap:7px;min-height:28px;padding:4px 8px;border:0;border-radius:6px;background:none;text-align:left}
+.side-row:hover,.nav-row:hover{background:var(--chrome-2)}
+.side-row.active,.nav-row.active{background:var(--sel);color:var(--accent-text)}
+.side-row .icon{color:var(--muted)}
+.count{margin-left:auto;color:var(--faint);font-size:12px;font-variant-numeric:tabular-nums}
+.no-counts .count{display:none}
+.side-section{width:100%;display:flex;align-items:center;justify-content:space-between;margin-top:14px;padding:4px 8px;border:0;background:none;color:var(--faint);font-size:11px;font-weight:600}
+.side-section .icon{width:14px;height:14px;transition:transform .15s}
+.side-section[aria-expanded=true] .icon{transform:rotate(90deg)}
+.folder-actions{display:flex;gap:4px;padding:2px 8px 6px}
+.folder-actions button{border:0;background:none;padding:2px 4px;color:var(--accent-text);font-size:12px;border-radius:4px}
+.folder-actions button:hover{background:var(--chrome-2)}
+.nav-group{margin-top:8px}
+.nav-group-label{display:flex;align-items:center;gap:7px;padding:4px 8px;color:var(--muted);font-size:12px;font-weight:600}
+.nav-group-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-flag{margin-left:auto;padding:0 6px;border-radius:9px;font-size:10.5px;font-weight:600;white-space:nowrap}
+.nav-flag.warn{background:var(--warn-bg);color:var(--warn)}.nav-flag.error{background:var(--err-bg);color:var(--err)}
+.nav-row{padding-left:calc(6px + var(--level)*14px)}
+.nav-branch,.row-branch{display:grid;place-items:center;width:16px;height:16px;flex:none;color:var(--faint)}
+.nav-branch svg,.row-branch svg{width:12px;height:12px;transition:transform .15s}
+.nav-branch.open svg,.row-branch.open svg{transform:rotate(90deg)}
+.nav-branch.leaf,.row-branch.leaf{visibility:hidden}
+.nav-icon{display:flex;color:var(--muted)}.nav-icon svg{width:15px;height:15px}
+.nav-row.active .nav-icon{color:var(--accent)}
+.nav-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nav-empty{padding:8px;color:var(--muted)}
+.resize{position:absolute;top:0;bottom:0;width:7px;cursor:col-resize;z-index:3}
+.resize::after{content:"";position:absolute;top:0;bottom:0;left:3px;width:1px}
+.resize:hover::after{background:var(--accent)}
+.sidebar .resize{right:-4px}.detail .resize{left:-4px}
+
+.workspace{display:flex;flex-direction:column;min-width:0;min-height:0}
+.toolbar{height:52px;flex:none;display:flex;align-items:center;gap:8px;padding:0 12px;background:var(--chrome);border-bottom:1px solid var(--line)}
+.icon-btn{display:inline-grid;place-items:center;width:30px;height:30px;border:0;border-radius:6px;background:none;color:var(--muted)}
+.icon-btn:hover{background:var(--chrome-2);color:var(--text)}
+.icon-btn[aria-pressed=true]{color:var(--accent)}
+.breadcrumb{display:flex;align-items:center;gap:4px;min-width:0;color:var(--muted);white-space:nowrap}
+.breadcrumb strong{min-width:0;overflow:hidden;text-overflow:ellipsis;color:var(--text);font-weight:600}
+.crumb-sep{display:flex}.crumb-sep svg{width:12px;height:12px}
+.search{flex:1;max-width:520px;margin:0 auto;display:flex;align-items:center;gap:6px;height:32px;padding:0 4px 0 10px;border:1px solid var(--line-strong);border-radius:8px;background:var(--bg)}
+.search:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.search .icon{color:var(--faint)}
+.search input{flex:1;min-width:0;border:0;outline:0;background:none}
+.search-go{height:24px;padding:0 8px;border:0;border-radius:5px;background:var(--accent);color:var(--on-accent);font-size:12px;font-weight:600}
+.tool-group{display:flex;align-items:center;gap:2px}
+.sep{width:1px;height:20px;background:var(--line-strong);margin:0 4px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:30px;padding:0 11px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg);font-size:12.5px;font-weight:500;white-space:nowrap}
+.btn:hover{background:var(--hover)}
+.btn:disabled{opacity:.55;cursor:default}
+.btn .icon,.btn svg{width:14px;height:14px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.btn.primary:hover{background:var(--accent-hover)}
+.reread{position:relative;display:flex}
+.reread .btn:first-child{border-radius:6px 0 0 6px}
+.reread .btn:last-of-type{border-left:0;border-radius:0 6px 6px 0;padding:0 6px}
+.menu{position:absolute;z-index:20;min-width:240px;padding:5px;border:1px solid var(--line);border-radius:9px;background:var(--bg);box-shadow:var(--shadow)}
+.reread .menu{right:0;top:calc(100% + 6px)}
+.menu-label{padding:6px 8px 3px;color:var(--faint);font-size:11px;font-weight:600}
+.menu button{width:100%;display:flex;align-items:center;gap:8px;padding:6px 8px;border:0;border-radius:5px;background:none;text-align:left}
+.menu button:hover,.menu button:focus-visible{background:var(--accent);color:var(--on-accent);outline:0}
+.menu small{margin-left:auto;color:inherit;opacity:.7}
+.menu-rule{height:1px;margin:4px 6px;background:var(--line)}
+.segmented{display:inline-flex;padding:2px;border-radius:7px;background:var(--chrome-2)}
+.segmented button{display:grid;place-items:center;width:28px;height:24px;border:0;border-radius:5px;background:none;color:var(--muted)}
+.segmented button[aria-pressed=true]{background:var(--bg);color:var(--text);box-shadow:0 1px 2px rgba(0,0,0,.12)}
+
+.filterbar{flex:none;display:flex;align-items:center;flex-wrap:wrap;gap:6px 14px;padding:7px 16px;border-bottom:1px solid var(--line);background:var(--bg);color:var(--muted);font-size:12.5px}
+.fgroup{display:flex;align-items:center;gap:6px}
+.flabel{color:var(--faint);font-size:12px}
+.pill{position:relative;display:inline-flex}
+.pill input{position:absolute;opacity:0;inset:0;margin:0;cursor:pointer}
+.pill span{padding:3px 10px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg);color:var(--muted);font-size:12px}
+.pill input:checked+span{border-color:var(--sel-line);background:var(--accent-soft);color:var(--accent-text);font-weight:600}
+.pill input:focus-visible+span{outline:2px solid var(--accent);outline-offset:1px}
+.pill-row{display:inline-flex;gap:4px}
+.syntax-wrap{position:relative}
+.link{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:2px 4px;color:var(--accent-text);font-size:12.5px}
+.link .icon,.link svg{width:14px;height:14px}
+.syntax{position:absolute;left:0;top:calc(100% + 8px);z-index:20;width:360px;padding:14px 16px;border:1px solid var(--line);border-radius:10px;background:var(--bg);box-shadow:var(--shadow);color:var(--muted);font-size:12.5px;line-height:1.55}
+.syntax strong{color:var(--text)}.syntax p{margin:8px 0 0}
+.syntax code{padding:1px 4px;border-radius:4px;background:var(--chrome-2);color:var(--text);font:12px var(--mono)}
+.spacer{flex:1}
+select{height:28px;padding:0 8px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg)}
+
+.content{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) auto}
+.main{min-width:0;min-height:0;display:flex;flex-direction:column}
+.result-head{flex:none;display:flex;align-items:flex-end;gap:16px;flex-wrap:wrap;padding:14px 16px 8px}
+.result-head h1{margin:0;font-size:18px;font-weight:650;letter-spacing:-.015em}
+.caption{color:var(--muted);font-size:12px}
+.refine{margin-left:auto;display:flex;align-items:center;gap:6px;width:min(320px,100%);height:30px;padding:0 6px 0 9px;border:1px solid var(--line-strong);border-radius:7px;background:var(--bg);color:var(--faint)}
+.refine:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+.refine input{flex:1;min-width:0;border:0;outline:0;background:none;color:var(--text)}
+.refine .icon svg{width:14px;height:14px}
+#status{flex:none;padding:0 16px;display:grid;gap:4px}
+#status p{display:flex;align-items:flex-start;gap:7px;margin:0;font-size:12px;line-height:1.45}
+#status svg{width:14px;height:14px;flex:none;margin-top:1px}
+.status-line{color:var(--muted)}
+.status-item{padding:5px 9px;border:1px solid;border-radius:6px}
+.status-item.error{background:var(--err-bg);border-color:var(--err-line);color:var(--err)}
+.status-item.warn{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)}
+#chips{flex:none;display:flex;flex-wrap:wrap;gap:5px;padding:8px 16px}
+.chip{padding:2px 8px;border:1px solid var(--line);border-radius:5px;background:var(--chrome);color:var(--muted);font-size:12px;white-space:nowrap;max-width:100%;overflow:hidden;text-overflow:ellipsis}
+.chip.accent{background:var(--accent-soft);border-color:var(--sel-line);color:var(--accent-text)}
+.chip.warn{background:var(--warn-bg);border-color:var(--warn-line);color:var(--warn)}
+
+#results{flex:1;min-height:0;overflow:auto;border-top:1px solid var(--line);outline-offset:-2px}
+.list-head,.row{display:grid;grid-template-columns:calc(20px + var(--level,0)*16px) 20px minmax(0,1fr) minmax(0,34%) 64px 150px;align-items:center;column-gap:8px;padding:0 14px 0 8px}
+.list-head{position:sticky;top:0;z-index:2;height:28px;background:var(--bg);border-bottom:1px solid var(--line);color:var(--faint);font-size:11.5px;font-weight:600}
+.lh-name{grid-column:1/4;padding-left:48px}.lh-path{grid-column:4}.lh-count{grid-column:5;text-align:right}.lh-source{grid-column:6}
+.no-counts .list-head,.no-counts .row{grid-template-columns:calc(20px + var(--level,0)*16px) 20px minmax(0,1fr) minmax(0,34%) 0 150px}
+.row{grid-template-rows:auto auto;min-height:44px;padding-top:5px;padding-bottom:5px;border-bottom:1px solid var(--line);cursor:default}
+.row:hover{background:var(--hover)}
+.row.selected{background:var(--sel)}
+.row:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.row-branch{grid-row:1/3;justify-self:end}
+.row-icon{grid-row:1/3;display:flex;color:var(--faint)}.row-icon svg{width:16px;height:16px}
+.row.folder .row-icon{color:#c48a1c}
+.row-main{display:contents}
+.row-title{grid-column:3;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-url{grid-column:3;grid-row:2;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row.folder .row-title{grid-row:1/3}
+.row.folder .row-url{display:none}
+.row-path{grid-column:4;grid-row:1/3;color:var(--muted);font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row-count{grid-column:5;grid-row:1/3;text-align:right}
+.source{grid-column:6;grid-row:1/3;display:flex;align-items:center;gap:6px;min-width:0;font-size:12px;color:var(--muted)}
+.source-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty{display:grid;justify-items:center;gap:4px;padding:56px 16px;color:var(--muted);text-align:center}
+.empty svg{width:28px;height:28px;color:var(--faint);margin-bottom:6px}
+.empty strong{color:var(--text);font-size:14px}
+
+.detail{position:relative;width:var(--right-size,320px);min-height:0;overflow:auto;padding:16px 18px 20px;border-left:1px solid var(--line);background:var(--bg)}
+.hide-details .detail{display:none}
+.detail-kicker{color:var(--faint);font-size:11.5px;font-weight:600}
+.detail-icon{display:grid;place-items:center;width:40px;height:40px;margin:14px 0 10px;border-radius:9px;background:var(--accent-soft);color:var(--accent)}
+.detail-icon svg{width:20px;height:20px}
+.detail-title{margin:0 0 4px;font-size:17px;font-weight:650;line-height:1.3;overflow-wrap:anywhere}
+.detail-url{display:block;color:var(--accent-text);font-size:12.5px;text-decoration:none;overflow-wrap:anywhere}
+.detail-url:hover{text-decoration:underline}
+.detail-actions{display:flex;flex-wrap:wrap;gap:6px;margin:14px 0 6px}
+.meta{margin:12px 0 0;display:grid;gap:0;border-top:1px solid var(--line)}
+.meta-item{padding:10px 0;border-bottom:1px solid var(--line)}
+.meta dt{color:var(--faint);font-size:11.5px;font-weight:600;margin-bottom:4px}
+.meta dd{margin:0;font-size:12.5px;overflow-wrap:anywhere}
+.meta-source{display:flex;align-items:center;flex-wrap:wrap;gap:6px}
+.stale{padding:0 6px;border-radius:9px;background:var(--warn-bg);color:var(--warn);font-size:11px;font-weight:600}
+.crumbs{margin:0;padding:0;list-style:none}
+.crumbs li{position:relative;padding:1px 0 1px 14px}
+.crumbs li::before{content:"";position:absolute;left:3px;top:0;bottom:0;width:1px;background:var(--line-strong)}
+.crumbs li::after{content:"";position:absolute;left:3px;top:50%;width:7px;height:1px;background:var(--line-strong)}
+.crumbs li:last-child{font-weight:600}
+.detail-empty{color:var(--muted)}
+.read-only{display:flex;gap:7px;margin-top:16px;padding:9px 10px;border-radius:7px;background:var(--chrome);color:var(--muted);font-size:12px}
+.read-only svg{width:14px;height:14px;flex:none;margin-top:1px}
+
+.statusbar{flex:none;height:28px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 14px;border-top:1px solid var(--line);background:var(--chrome);color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden}
+.statusbar .shortcuts{display:flex;gap:14px}
+.statusbar .kbd{font-size:10.5px;padding:0 4px;margin-right:3px}
+
+#ctx{position:fixed;z-index:40}
+.toast{position:fixed;left:50%;bottom:44px;z-index:60;transform:translateX(-50%);max-width:min(560px,90vw);padding:8px 14px;border-radius:8px;background:#1c1c1f;color:#fff;font-size:12.5px;box-shadow:var(--shadow)}
+
+/* Settings: two-pane preferences window */
+.backdrop{position:fixed;inset:var(--mock-bar,0px) 0 0 0;z-index:50;display:grid;place-items:center;padding:24px;background:rgba(20,20,30,.38)}
+.modal{width:min(860px,100%);height:min(640px,calc(100vh - 80px));display:grid;grid-template-columns:200px minmax(0,1fr);border:1px solid var(--line);border-radius:12px;background:var(--bg);box-shadow:var(--shadow);overflow:hidden}
+.modal-nav{padding:16px 10px;background:var(--chrome);border-right:1px solid var(--line)}
+.modal-nav h2{margin:0 8px 12px;font-size:14px}
+.modal-nav [role=tab]{width:100%;display:flex;align-items:center;gap:8px;padding:6px 8px;border:0;border-radius:6px;background:none;text-align:left}
+.modal-nav [role=tab][aria-selected=true]{background:var(--sel);color:var(--accent-text);font-weight:600}
+.modal-body{display:flex;flex-direction:column;min-height:0}
+.modal-head{flex:none;display:flex;align-items:flex-start;gap:12px;padding:16px 20px 12px;border-bottom:1px solid var(--line)}
+.modal-head h3{margin:0;font-size:16px}
+.modal-head p{margin:2px 0 0;color:var(--muted);font-size:12.5px}
+.modal-head .icon-btn{margin-left:auto}
+#settings-panel{flex:1;overflow:auto;padding:4px 20px 20px}
+.set-section{padding:16px 0;border-bottom:1px solid var(--line)}
+.set-section:last-child{border-bottom:0}
+.set-section h3{display:flex;align-items:center;gap:7px;margin:0 0 10px;font-size:13px;font-weight:650}
+.set-section h3 svg{width:15px;height:15px;color:var(--muted)}
+.set-section p{margin:0 0 10px;color:var(--muted);font-size:12.5px}
+.fda{background:var(--chrome);margin:12px -8px 0;padding:14px 12px;border:0;border-radius:8px}
+.dir-row{display:grid;gap:5px;margin-bottom:8px;font-size:12.5px}
+.dir-row label{color:var(--muted)}
+.dir-controls{display:flex;gap:6px}
+.dir-controls input{flex:1;min-width:0;height:30px;padding:0 9px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg)}
+.dir-row small{color:var(--faint);font-size:12px}
+.profile-toggle{display:flex;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+.pt-text{flex:1;min-width:0;display:grid;gap:1px}
+.pt-text strong{display:flex;align-items:center;gap:6px;font-weight:600}
+.pt-text small{color:var(--muted);font-size:12px}
+.pt-error{color:var(--err);font-style:normal;font-size:12px}
+input[role=switch]{appearance:none;flex:none;width:32px;height:18px;margin:0;border-radius:9px;background:var(--line-strong);position:relative;cursor:pointer;transition:background .15s}
+input[role=switch]::after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.3);transition:transform .15s}
+input[role=switch]:checked{background:var(--accent)}
+input[role=switch]:checked::after{transform:translateX(14px)}
+.set-note{padding:8px 10px;border-radius:6px;background:var(--chrome)}
+.sc-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:7px 0;border-top:1px solid var(--line)}
+.sc-capture{min-width:72px;padding:3px 9px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg);font:12px var(--mono)}
+.sc-capture.capturing{border-color:var(--accent);background:var(--accent-soft);color:var(--accent-text)}
+.sc-editor{display:flex;align-items:flex-end;gap:6px;padding:0 0 10px}
+.sc-editor label{flex:1;display:grid;gap:4px;color:var(--muted);font-size:12px}
+.sc-editor input{height:30px;padding:0 9px;border:1px solid var(--line-strong);border-radius:6px;background:var(--bg)}
+.link-button{margin-top:12px;border:0;background:none;padding:0;color:var(--accent-text)}
+@media (max-width:1100px){.list-head,.row{grid-template-columns:calc(20px + var(--level,0)*16px) 20px minmax(0,1fr) 0 56px 130px}.row-path,.lh-path{display:none}}
+</style>
+</head>
+<body>
+<div id="app" class="app">
+  <aside class="sidebar" id="folder-sidebar" aria-label="Folder scope">
+    <div class="brand"><i data-icon="mark"></i> Bookmarktivity</div>
+    <nav class="side-scroll">
+      <div class="side-label">Workspace</div>
+      <button type="button" class="side-row" id="all-row" data-action="scope-all"><i data-icon="grid"></i><span>All bookmarks</span><span class="count" id="all-count"></span></button>
+      <button type="button" class="side-section" data-action="folder-section" aria-expanded="true"><span>Your Folders</span><i data-icon="chevron"></i></button>
+      <div class="folder-actions" id="folder-actions"><button type="button" data-action="nav-collapse-all">Collapse all</button><button type="button" data-action="nav-expand-all">Expand all</button></div>
+      <div id="nav-tree" role="tree" aria-label="Folders"></div>
+    </nav>
+    <div class="resize" role="separator" aria-label="Resize folders sidebar" tabindex="0" data-resize="left" data-panel="#folder-sidebar"></div>
+  </aside>
+
+  <div class="workspace">
+    <header class="toolbar">
+      <button type="button" class="icon-btn" data-action="toggle-folders" data-title-on="Hide folders" data-title-off="Show folders"><i data-icon="panelLeft"></i></button>
+      <div class="breadcrumb" id="breadcrumb"></div>
+      <label class="search"><i data-icon="search"></i><input id="q" type="search" aria-label="Search bookmarks" autocomplete="off" spellcheck="false" placeholder="Search by name, folder or URL…"><span class="kbd" data-key="find"></span><button type="button" class="search-go" data-action="focus-search">Search</button></label>
+      <div class="tool-group">
+        <div class="reread"><button type="button" class="btn" data-action="reread-all"><i data-icon="refresh"></i><span data-label>Re-read all sources</span></button><button type="button" class="btn" data-action="reread-toggle" aria-label="Choose re-read target" aria-haspopup="menu" aria-expanded="false"><i data-icon="caret"></i></button><div class="menu" id="reread-menu" role="menu" hidden></div></div>
+        <span class="sep"></span>
+        <button type="button" class="icon-btn" data-action="toggle-counts" data-title-on="Hide counts" data-title-off="Show counts"><i data-icon="hash"></i></button>
+        <button type="button" class="icon-btn" data-action="toggle-details" data-title-on="Hide details" data-title-off="Show details"><i data-icon="panelRight"></i></button>
+        <button type="button" class="icon-btn" data-action="settings-open" title="Profiles &amp; settings"><i data-icon="settings"></i></button>
+        <div class="segmented" role="group" aria-label="Appearance"><button type="button" data-action="theme" data-value="light" title="Light"><i data-icon="sun"></i></button><button type="button" data-action="theme" data-value="dark" title="Dark"><i data-icon="moon"></i></button></div>
+      </div>
+    </header>
+
+    <div class="filterbar">
+      <div class="fgroup"><span class="flabel">Search in</span><span class="pill-row">
+        <label class="pill"><input type="checkbox" name="field" value="name"><span>Name</span></label>
+        <label class="pill"><input type="checkbox" name="field" value="url"><span>URL</span></label>
+        <label class="pill"><input type="checkbox" name="field" value="folder"><span>Folder name</span></label>
+        <label class="pill"><input type="checkbox" id="regex"><span>Regex</span></label></span></div>
+      <div class="syntax-wrap"><button type="button" class="link" data-action="syntax" aria-expanded="false"><i data-icon="help"></i>Syntax guide</button>
+        <div class="syntax" id="syntax" hidden><strong>Query ideas</strong><p><code>name:"Project plan"</code> matches that exact text anywhere inside a longer name, even mid-word.</p><p><code>url:docs.example.com AND name:guide</code> combines fields.</p><p><code>OR</code> broadens a query. <code>folder:</code> matches the immediate folder name. The folder list sets scope.</p><p>Regex mode treats the full primary query as an expression across the selected fields.</p></div></div>
+      <div class="fgroup"><span class="flabel">Search selected folder</span><span class="pill-row">
+        <label class="pill"><input type="radio" name="scope-mode" value="descendants"><span>Including descendants</span></label>
+        <label class="pill"><input type="radio" name="scope-mode" value="direct"><span>Direct contents only</span></label></span></div>
+      <span class="spacer"></span>
+      <div class="fgroup"><label class="flabel" for="sort">Sort by</label><select id="sort" name="sort"><option value="relevance">Relevance</option><option value="alphabetical">Alphabetical</option><option value="created">Date created</option><option value="modified">Date modified</option></select></div>
+    </div>
+
+    <div class="content">
+      <main class="main">
+        <div class="result-head">
+          <div><h1 id="result-title"></h1><div class="caption" id="result-caption"></div></div>
+          <label class="refine"><i data-icon="filter"></i><input id="refine" type="search" aria-label="Search within results" autocomplete="off" spellcheck="false" placeholder="Search within these results…"><span class="kbd" data-key="refine"></span></label>
+        </div>
+        <div id="status" role="status"></div>
+        <div id="chips"></div>
+        <div id="results" role="tree" aria-label="Search results" tabindex="0"></div>
+      </main>
+      <aside class="detail" id="details-sidebar" aria-label="Selected item details">
+        <div class="resize" role="separator" aria-label="Resize details sidebar" tabindex="0" data-resize="right" data-panel="#details-sidebar"></div>
+        <div class="detail-kicker" id="detail-kicker"></div>
+        <div id="detail-body"></div>
+        <div class="read-only"><i data-icon="lock"></i><span>Read only. Bookmarktivity does not change browser bookmark files.</span></div>
+      </aside>
+    </div>
+
+    <footer class="statusbar"><span>Enabled profiles only · Read-only browser access</span><span class="shortcuts"><span><span class="kbd" data-key="results"></span>Results</span><span><span class="kbd">← →</span>Folders</span><span><span class="kbd">Esc Esc</span>Reset</span><span><span class="kbd" data-key="copy"></span>Copy URL</span></span></footer>
+  </div>
+</div>
+
+<div class="menu" id="ctx" role="menu" aria-label="Folder actions" hidden></div>
+<div class="backdrop" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+  <div class="modal">
+    <nav class="modal-nav"><h2 id="settings-title">Profiles &amp; settings</h2><div role="tablist" aria-orientation="vertical" aria-label="Settings sections">
+      <button type="button" role="tab" data-action="tab" data-tab="profiles"><i data-icon="user"></i>Local bookmark profiles</button>
+      <button type="button" role="tab" data-action="tab" data-tab="shortcuts"><i data-icon="keyboard"></i>Keyboard shortcuts</button></div></nav>
+    <div class="modal-body">
+      <div class="modal-head"><div><h3>Profiles &amp; settings</h3><p>Choose which local profiles to include and customize keyboard shortcuts.</p></div><button type="button" class="icon-btn" data-action="settings-close" aria-label="Close settings"><i data-icon="close"></i></button></div>
+      <div id="settings-panel" role="tabpanel"></div>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<script src="mock.js"></script>
+</body>
+</html>

@@ -43,3 +43,11 @@ Record confirmed issues here with the observed behavior, cause, fix, and local d
 - **Issue:** The desktop stopped every search after three seconds, cleared its results, and recreated the worker without retrying that query. Typing could queue earlier searches ahead of the latest one. Fuzzy matching also allocated a full edit-distance row for every candidate word, adding cost across large collections.
 - **Fix:** Debounce search requests, stop an older running worker when a new query arrives, and show a searching state until the latest response arrives. Keep the short timeout for regex only. Use bounded edit-distance rows for fuzzy matching and test a combined 12,000-bookmark synthetic collection with the match at the end.
 - **Remaining limitation:** Search can only find records in the loaded profile snapshot. Brave's clear-text snapshot may lag its encrypted store; that separate issue remains under BUG-004.
+
+## BUG-006 — "All bookmarks" showed the number of profiles
+
+- **Date and time:** 2026-11-11 15:36 AEDT
+- **Status:** Fixed
+- **Description:** The count beside **All bookmarks** in the folder sidebar showed how many profiles were enabled.
+- **Issue:** It read as a bookmark total, so a workspace with thousands of bookmarks displayed a small number such as 2.
+- **Fix:** Show the number of bookmarks across enabled profiles, consistent with the folder counts.
