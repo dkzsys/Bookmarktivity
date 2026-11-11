@@ -4,7 +4,7 @@ version = 4
 
 [[package]]
 name = "browser-chromium"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "browser-model",
  "serde_json",
@@ -12,7 +12,7 @@ dependencies = [
 
 [[package]]
 name = "browser-model"
-version = "0.4.3"
+version = "0.4.4"
 dependencies = [
  "serde",
  "serde_json",

@@ -1,0 +1,2 @@
+c5afd673d2dcc21b2a53a12c07c6d7089930aa5845b8b7c91bbb619d724e8952  Bookmarktivity-v0.4.4-macos-arm64.dmg
+f37d7d25c8e62a043313525ed832c612eea63c8cbcb6ad8f86ec5286c8e9e87b  Bookmarktivity-v0.4.4-windows-x64-setup.exe
