@@ -146,7 +146,7 @@ select{height:28px;padding:0 8px;border:1px solid var(--line-strong);border-radi
 .source-status{flex:none;display:grid;gap:4px;padding:0 16px}
 .source-status p{display:flex;align-items:flex-start;gap:7px;margin:0;font-size:12px;line-height:1.45}
 .source-status .icon{width:14px;height:14px;margin-top:1px}
-.status-line{color:var(--muted)}
+.status-line{color:var(--muted);white-space:pre-line}
 .status-item{padding:5px 9px;border:1px solid;border-radius:6px}
 .status-item.error{border-color:var(--err-line);background:var(--err-bg);color:var(--err)}
 .status-item.warn{border-color:var(--warn-line);background:var(--warn-bg);color:var(--warn)}
@@ -155,6 +155,9 @@ select{height:28px;padding:0 8px;border:1px solid var(--line-strong);border-radi
 .chip{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 8px;border:1px solid var(--line);border-radius:5px;background:var(--chrome);color:var(--muted);font-size:12px}
 .chip.accent{border-color:var(--sel-line);background:var(--accent-soft);color:var(--accent-text)}
 .chip.warn{border-color:var(--warn-line);background:var(--warn-bg);color:var(--warn)}
+.chip-toggle{display:inline-flex;align-items:center;gap:3px;font:inherit;font-size:12px;cursor:pointer}
+.chip-toggle svg{width:12px;height:12px;transition:transform .15s}
+.chip-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
 
 .result-list{flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;border-top:1px solid var(--line);outline-offset:-2px}
 .virtual-space{position:relative}

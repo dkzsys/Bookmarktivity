@@ -15,11 +15,11 @@ const defaultOptions: SearchOptions = {
   scopeId: null, scopeMode: "descendants", sort: "relevance"
 };
 const mac = /Mac|iPhone|iPad/.test(navigator.platform);
+const fullDiskAccessHint = "On macOS, grant Bookmarktivity Full Disk Access in System Settings, then choose Find profiles or re-read.";
+const needsFullDiskAccess = (message: string) => mac && /permission denied|operation not permitted|access denied/i.test(message);
 const profileDiscoveryError = (error: unknown) => {
   const message = String(error);
-  return mac && /permission denied|operation not permitted|access denied/i.test(message)
-    ? `${message} On macOS, grant Bookmarktivity Full Disk Access in System Settings, then choose Find profiles or re-read.`
-    : message;
+  return needsFullDiskAccess(message) ? `${message} ${fullDiskAccessHint}` : message;
 };
 type ShortcutAction = "find" | "refine" | "results" | "copy" | "settings" | "expandAll" | "collapseAll";
 const defaultBindings: Record<ShortcutAction, string> = {
@@ -201,6 +201,10 @@ export default function App() {
     try { return window.localStorage.getItem("bookmarktivity-show-bookmark-counts") !== "false"; }
     catch { return true; }
   });
+  const [showStaleWarnings, setShowStaleWarnings] = useState(() => {
+    try { return window.localStorage.getItem("bookmarktivity-show-stale-warnings") === "true"; }
+    catch { return false; }
+  });
   const [leftSidebarWidth, setLeftSidebarWidth] = useState(() => storedSidebarWidth("left"));
   const [rightSidebarWidth, setRightSidebarWidth] = useState(() => storedSidebarWidth("right"));
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -246,6 +250,9 @@ export default function App() {
   useEffect(() => {
     try { window.localStorage.setItem("bookmarktivity-show-bookmark-counts", String(showBookmarkCounts)); } catch { /* the toggle still works without storage */ }
   }, [showBookmarkCounts]);
+  useEffect(() => {
+    try { window.localStorage.setItem("bookmarktivity-show-stale-warnings", String(showStaleWarnings)); } catch { /* the toggle still works without storage */ }
+  }, [showStaleWarnings]);
   useEffect(() => {
     document.documentElement.dataset.theme = prefs.theme === "dark" ? "dark" : "light";
   }, [prefs.theme]);
@@ -373,8 +380,12 @@ export default function App() {
         setPrefs(nextPrefs);
         setProfiles(discovered);
         await readTargets(discovered.filter(p => migrated.includes(p.id)), "Startup");
-        const failures = outcomes.flatMap((outcome, index) => outcome.status === "rejected" ? [`${browserNames[browserIds[index]]}: ${profileDiscoveryError(outcome.reason)}`] : []);
-        if (failures.length) setStatus(failures.join(" · "));
+        const failures = outcomes.flatMap((outcome, index) => outcome.status === "rejected" ? [{ browser: browserNames[browserIds[index]], message: String(outcome.reason) }] : []);
+        if (failures.length) {
+          const lines = failures.map(({ browser, message }) => `${browser}: ${message}`);
+          if (failures.some(({ message }) => needsFullDiskAccess(message))) lines.push(fullDiskAccessHint);
+          setStatus(lines.join("\n"));
+        }
         if (!discovered.some(profile => migrated.includes(profile.id))) setSettingsOpen(true);
       } catch (error) {
         setStatus(profileDiscoveryError(error));
@@ -836,9 +847,9 @@ export default function App() {
         <div className="source-status" role="status">
           <p className="status-line"><Icons.ok /><span>{status}</span></p>
           {Object.entries(errors).map(([id, error]) => <p className="status-item error" key={id}><Icons.error /><span><strong>{profileMap.get(id) ? `${browserNames[profileMap.get(id)!.browserId]} · ${profileMap.get(id)!.name}` : id}</strong> {error}</span></p>)}
-          {snapshotWarnings.map(profile => <p className="status-item warn" key={profile.id}><Icons.warning /><span><strong>{browserNames[profile.browserId]} · {profile.name}</strong> {data[profile.id].warning}</span></p>)}
+          {showStaleWarnings && snapshotWarnings.map(profile => <p className="status-item warn" key={profile.id}><Icons.warning /><span><strong>{browserNames[profile.browserId]} · {profile.name}</strong> {data[profile.id].warning}</span></p>)}
         </div>
-        <div className="active-bar"><span className="chip accent">{enabled.length} enabled {enabled.length === 1 ? "profile" : "profiles"}</span>{snapshotWarnings.length > 0 && <span className="chip warn">{snapshotWarnings.length} possibly stale {snapshotWarnings.length === 1 ? "profile" : "profiles"}</span>}{scopedFolder && <span className="chip">{scopedFolder.name} · {options.scopeMode === "direct" ? "direct only" : "with descendants"}</span>}{options.query && <span className="chip">Query: {options.query}</span>}{options.refine && <span className="chip">Within results: {options.refine}</span>}{result.matchedFolderIds.length > 0 && <span className="chip">Folder matches include contents</span>}<span className="chip">{options.regex ? "Regex mode" : `Fields: ${options.fields.join(", ") || "none"}`}</span></div>
+        <div className="active-bar"><span className="chip accent">{enabled.length} enabled {enabled.length === 1 ? "profile" : "profiles"}</span>{snapshotWarnings.length > 0 && <button type="button" className="chip warn chip-toggle" aria-expanded={showStaleWarnings} title={showStaleWarnings ? "Hide stale snapshot details" : "Show stale snapshot details"} onClick={() => setShowStaleWarnings(show => !show)}>{snapshotWarnings.length} possibly stale {snapshotWarnings.length === 1 ? "profile" : "profiles"}<Icons.caret /></button>}{scopedFolder && <span className="chip">{scopedFolder.name} · {options.scopeMode === "direct" ? "direct only" : "with descendants"}</span>}{options.query && <span className="chip">Query: {options.query}</span>}{options.refine && <span className="chip">Within results: {options.refine}</span>}{result.matchedFolderIds.length > 0 && <span className="chip">Folder matches include contents</span>}<span className="chip">{options.regex ? "Regex mode" : `Fields: ${options.fields.join(", ") || "none"}`}</span></div>
         <div className={`result-list ${virtual ? "virtual" : ""}`} role="tree" aria-label="Search results" aria-busy={searching} tabIndex={0} ref={resultsRef} onScroll={event => setResultScroll(event.currentTarget.scrollTop)}>
           {!visible.length ? <div className="empty"><Icons.search /><strong>{searching ? "Searching bookmarks" : result.error ? "Check the search query" : enabled.length ? "No matches in this scope" : "Choose a browser profile"}</strong><span>{searching ? "Checking the enabled profiles…" : result.error || (enabled.length ? "Try another query, field, folder, or enabled profile." : "Open Profiles & settings to include local bookmarks.")}</span></div> : <>
             <div className="list-head" aria-hidden="true"><span className="lh-name">Item</span><span className="lh-path">Location</span><span className="lh-count">Bookmarks</span><span className="lh-source">Source</span></div>
