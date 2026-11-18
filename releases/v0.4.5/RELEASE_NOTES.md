@@ -17,4 +17,4 @@ All existing keyboard shortcuts, search syntax, folder scope, re-read options, a
 
 ## Installation status
 
-This is a test release. No installers have been built for 0.4.5 yet.
+This is a test release. The Apple Silicon macOS build is ad-hoc signed but not notarized. The Windows x64 installer is unsigned and was cross-built on macOS; installation on Windows has not been tested. Both packages should be validated on their target platforms before public distribution.
