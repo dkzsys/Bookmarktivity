@@ -1,0 +1,18 @@
+{
+  "collection": "ms_bookmarktivity_d2ffdba3",
+  "failed_files": [],
+  "indexed_chunks": 0,
+  "indexed_files": 0,
+  "last_completed_at": "2026-11-18T21:17:24.139338Z",
+  "last_started_at": "2026-11-18T21:17:23.436006Z",
+  "last_success_at": "2026-11-18T21:17:24.139338Z",
+  "milvus_uri": "~/.memsearch/milvus.db",
+  "operation": "index",
+  "paths": [
+    "/Users/taiz/Documents/Development/my_projects/Bookmarktivity/.memsearch/memory"
+  ],
+  "schema_version": 1,
+  "status": "ok",
+  "total_files": 0,
+  "updated_at": "2026-11-18T21:17:24.139338Z"
+}
