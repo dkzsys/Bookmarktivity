@@ -165,9 +165,9 @@ The first usable desktop implementation is in place. Real profile access runs on
 
 **Browser sources**
 - **Chromium-based browsers (Edge, Chrome, Brave):**
-  - If an encrypted copy of the bookmark file also exists, Bookmarktivity shows the clear-text snapshot with a "possibly stale" warning, because it may be older than the browser's current bookmarks.
-  - If a bookmark store exists only in encrypted form, that profile's read fails and its previously loaded results are removed.
-  - Full support for encrypted storage is still open in [BUG.md](BUG.md).
+  - Encrypted bookmark stores are decrypted and preferred, as the browser does. On macOS, the first read asks for Keychain access to the browser's "Safe Storage" item.
+  - If decryption fails, for example because Keychain access was declined, Bookmarktivity shows the clear-text snapshot with a "possibly stale" warning. If there is no clear-text copy, that profile's read fails and its previously loaded results are removed.
+  - Windows app-bound (`v20`) and Linux keyring (`v11`) encryption are not supported. Windows decryption still needs validation on a real profile. See [ADR 0011](docs/decisions/0011-encrypted-chromium-bookmark-stores.md).
 - **Firefox:** tags, separators, and saved history queries are not included.
 - **Firefox and Safari:** the readers are tested with synthetic data and still need validation against real installations on each platform.
 

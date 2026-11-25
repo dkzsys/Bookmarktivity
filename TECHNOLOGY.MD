@@ -31,7 +31,7 @@ The Rust adapter returns browser-neutral records through the desktop host. Every
 
 - Keep native file access behind narrow, read-only browser adapters. Do not expose broad filesystem access to the web UI.
 - Discover platform-specific profile locations and allow a configured user-data directory per browser; do not assume one fixed path. The active profile path is visible at each browser's `://version` page.
-- Identify enabled profiles by browser, canonical user-data directory, and profile folder. Read `Bookmarks` and `AccountBookmarks` when present. Warn when an encrypted copy may make clear-text results stale; fail the profile read if a store exists only in encrypted form or is unsupported, rather than returning partial results.
+- Identify enabled profiles by browser, canonical user-data directory, and profile folder. Read `Bookmarks` and `AccountBookmarks` when present. Prefer a decrypted encrypted store (OS key access is read-only; see ADR 0011). When decryption fails, fall back to clear text with a staleness warning, or fail the profile read if a store exists only in encrypted form, rather than returning partial results.
 - Read Firefox bookmarks without opening `places.sqlite` through SQLite in place: load the file and its write-ahead log into memory, apply committed log frames there, and query the image. Do not copy the database to disk; it also contains browsing history. See [decision 0010](docs/decisions/0010-firefox-and-safari-sources.md).
 - Read only profiles the user enabled. Do not persist or log bookmark contents unnecessarily; use synthetic or sanitized fixtures for tests.
 - Open bookmark URLs in the system default browser. A preferred-browser action remains a separate product decision.

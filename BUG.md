@@ -30,10 +30,13 @@ Record confirmed issues here with the observed behavior, cause, fix, and local d
 
 - **Date and time:** 2026-10-25 20:10 AEDT
 - **Updated:** 2026-10-25 20:32 AEDT
-- **Status:** Mitigated; encrypted-only support remains open
+- **Updated:** 2026-11-25 22:55 AEDT
+- **Status:** Fixed on macOS; Windows `v10` support compile-checked and awaiting a real-profile run; Windows `v20` and Linux `v11` unsupported
 - **Description:** Chromium is introducing encrypted bookmark files such as `EncryptedBookmarks2` and `EncryptedAccountBookmarks2`.
 - **Issue:** The reader rejected a profile whenever an encrypted file existed, even if a clear-text `Bookmarks` or `AccountBookmarks` file was still available. The reported error affected Chrome and Brave. A clear-text copy may be stale, and an encrypted-only store cannot be decoded by the JSON reader.
 - **Fix:** Read available clear-text stores and show a profile-level warning that results may be older than the browser's current bookmarks. Fail the profile read when any store is encrypted-only, avoiding a partial collection. Full encrypted support still needs a separate design and compatibility tests for browser rollout stages and operating-system key access.
+- **Fix (2026-11-25):** Decrypt the encrypted stores and treat them as the source of truth, as Chromium does by default. Keys come from the macOS Keychain, Windows DPAPI, or the Linux `v10` default password. If decryption fails, fall back to the clear-text copy with a warning that names the reason, or fail the profile read if there is no clear-text copy. See [ADR 0011](docs/decisions/0011-encrypted-chromium-bookmark-stores.md). Validated on nine real macOS profiles across Chrome, Brave and Edge, none of which needed the fallback. Before this fix, one Chrome profile's clear-text file was more than a year older than its encrypted store.
+- **Remaining limitation:** Windows app-bound (`v20`) and Linux keyring (`v11`) stores cannot be decrypted and use the fallback rules.
 
 ## BUG-005 — Large combined searches time out and hide valid results
 
