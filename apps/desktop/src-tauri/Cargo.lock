@@ -194,7 +194,7 @@ dependencies = [
 
 [[package]]
 name = "bookmarktivity-desktop"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "browser-brave",
  "browser-chrome",
@@ -235,7 +235,7 @@ dependencies = [
 
 [[package]]
 name = "browser-brave"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "browser-chromium",
  "dirs 6.0.0",
@@ -243,7 +243,7 @@ dependencies = [
 
 [[package]]
 name = "browser-chrome"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "browser-chromium",
  "dirs 6.0.0",
@@ -251,7 +251,7 @@ dependencies = [
 
 [[package]]
 name = "browser-chromium"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "aes",
  "aes-gcm",
@@ -267,7 +267,7 @@ dependencies = [
 
 [[package]]
 name = "browser-edge"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "browser-chromium",
  "dirs 6.0.0",
@@ -275,7 +275,7 @@ dependencies = [
 
 [[package]]
 name = "browser-firefox"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "browser-model",
  "dirs 6.0.0",
@@ -284,7 +284,7 @@ dependencies = [
 
 [[package]]
 name = "browser-model"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "serde",
  "serde_json",
@@ -292,7 +292,7 @@ dependencies = [
 
 [[package]]
 name = "browser-safari"
-version = "0.4.5"
+version = "0.4.6"
 dependencies = [
  "browser-model",
  "dirs 6.0.0",
