@@ -1,6 +1,6 @@
 # Bookmarktivity 0.4.6 build record
 
-Prepared on 25 November 2026 (Australia/Melbourne) from release source tagged `v0.4.6` (commit `84d0b51`), which contains the package version updates. This build record was committed after the tag. It does not change the application source.
+Prepared on 25 November 2026 (Australia/Melbourne) from release source tagged `v0.4.6` (commit `cf9d762`), which contains the package version updates. This build record was committed after the tag. It does not change the application source.
 
 ## Artifacts
 

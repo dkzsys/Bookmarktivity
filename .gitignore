@@ -25,3 +25,6 @@ Local State
 places.sqlite*
 profiles.ini
 Bookmarks.plist
+
+# Local agent memory (kept in its own local-only repository)
+.memsearch/
