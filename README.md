@@ -171,7 +171,7 @@ The first usable desktop implementation is in place. Real profile access runs on
 - **Firefox:** tags, separators, and saved history queries are not included.
 - **Firefox and Safari:** the readers are tested with synthetic data and still need validation against real installations on each platform.
 
-Manual release preparation is documented in [releases/README.md](releases/README.md). Product scope and open decisions are in [PRODUCT.md](PRODUCT.md), and implementation boundaries are in [TECHNOLOGY.MD](TECHNOLOGY.MD).
+Changes in each version are listed in [CHANGELOG.md](CHANGELOG.md). Manual release preparation is documented in [releases/README.md](releases/README.md). Product scope and open decisions are in [PRODUCT.md](PRODUCT.md), and implementation boundaries are in [TECHNOLOGY.MD](TECHNOLOGY.MD).
 
 ## Repository map
 
@@ -193,7 +193,7 @@ Manual release preparation is documented in [releases/README.md](releases/README
 | `apps/desktop/wireframe.html` | Interactive desktop wireframe using synthetic bookmarks |
 | `PRODUCT.md` | Product scope and terminology |
 | `TECHNOLOGY.MD` | Selected technology direction and implementation boundaries |
-| `BUG.md` | Dated bug descriptions, issues, and fixes |
+| `CHANGELOG.md` | Changes and bug fixes in each version |
 | `AGENTS.md` | Guidance for coding agents |
 
 ## License

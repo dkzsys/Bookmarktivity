@@ -11,6 +11,7 @@ Bookmarktivity is a standalone, cross-platform desktop bookmark app. Read `PRODU
 - Do not write directly to Edge profile data until an explicit editing and recovery design is recorded and tested.
 - Use synthetic or sanitized fixtures. Do not commit real browser profiles, bookmarks, credentials, or other personal data.
 - Record consequential architecture decisions in `docs/decisions/`.
+- Record user-visible changes and bug fixes in `CHANGELOG.md` under `[Unreleased]`, and commit the entry with the fix.
 
 ## Working in this repository
 
