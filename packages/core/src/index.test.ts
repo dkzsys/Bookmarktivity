@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { arrangeTree, bookmarkCountsByFolder, folderBranchIds, fuzzyWordMatch, parseQuery, search, type Folder, type Bookmark, type SearchOptions } from "./index";
+import { arrangeTree, bookmarkCountsByFolder, folderBranchIds, fuzzyWordMatch, itemCopyText, parseQuery, search, type Folder, type Bookmark, type SearchOptions } from "./index";
 
 const work = { browserId: "edge", profileId: "Work", profileName: "Work" };
 const personal = { browserId: "edge", profileId: "Personal", profileName: "Personal" };
@@ -95,5 +95,19 @@ describe("search", () => {
     const arranged = arrangeTree(items, new Set());
     expect(folderBranchIds(arranged.children, research.id)).toEqual([research.id, methods.id]);
     expect(folderBranchIds(arranged.children, other.id)).toEqual([other.id]);
+  });
+});
+
+describe("item copy text", () => {
+  const folderMap = new Map([research, methods, other].map(folder => [folder.id, folder]));
+  it("copies a bookmark's URL", () => {
+    expect(itemCopyText(paper, folderMap)).toBe("https://papers.example.com/index");
+  });
+  it("copies a folder's full path including itself", () => {
+    expect(itemCopyText(methods, folderMap)).toBe("Research / Methods");
+  });
+  it("falls back to the folder's own name when its parents are unknown", () => {
+    const orphan: Folder = { kind: "folder", id: "Work:orphan", parentId: "Work:missing", name: "Orphan", source: work };
+    expect(itemCopyText(orphan, folderMap)).toBe("Orphan");
   });
 });

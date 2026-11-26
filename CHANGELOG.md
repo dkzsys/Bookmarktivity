@@ -4,6 +4,11 @@ All notable changes to Bookmarktivity are recorded here, newest first. The forma
 
 ## [Unreleased]
 
+### Added
+
+- Right-click any search result, or press `Shift+F10` or the Menu key on it, for a context menu. Bookmarks offer **Open** and **Copy URL**. Folders offer **Open**, **Copy path**, **Expand all**, and **Collapse all**.
+- The copy shortcut (`Command+C` / `Ctrl+C`) on a selected folder now copies its full folder path.
+
 ### Changed
 
 - Upgraded the core package's test runner to Vitest 5.

@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
-  arrangeTree, bookmarkCountsByFolder, folderBranchIds, folderPath, fuzzyWordMatch, parseQuery, type Field, type Folder, type Item, type MatchSpan,
+  arrangeTree, bookmarkCountsByFolder, folderBranchIds, folderPath, fuzzyWordMatch, itemCopyText, parseQuery, type Field, type Folder, type Item, type MatchSpan,
   type ProfileData, type ScopeMode, type SearchOptions, type SearchResult, type Sort
 } from "@bookmarktivity/core";
 import { browserIds, browserNames, browserShortNames, directoryHints, inTauri, native, type BrowserId, type BrowserProfile, type Preferences } from "./native";
 import { BrowserBadge, Icons } from "./icons";
+import { menuActionsFor, type MenuActionId, type MenuSurface } from "./resultActions";
 import { benchmarkSample, sampleData, sampleProfiles } from "./sample";
 import brandMark from "./assets/bookmarktivity-mark.svg";
 
@@ -32,14 +33,14 @@ const defaultBindings: Record<ShortcutAction, string> = {
   collapseAll: mac ? "Meta+Shift+E" : "Ctrl+Shift+E"
 };
 const shortcutNames: Record<ShortcutAction, string> = {
-  find: "Global search", refine: "Search within results", results: "Navigate to results", copy: "Copy selected URL", settings: "Profiles & settings",
+  find: "Global search", refine: "Search within results", results: "Navigate to results", copy: "Copy selected URL or folder path", settings: "Profiles & settings",
   expandAll: "Expand all in selected folder", collapseAll: "Collapse all in selected folder"
 };
 const labelFor = (binding: string) => binding.replace("Meta", "⌘").replace("Alt", mac ? "⌥" : "Alt").replace("Shift", "⇧").replaceAll("+", " ");
 const sidebarLimits = { left: { min: 170, max: 420, initial: 238 }, right: { min: 210, max: 500, initial: 302 } } as const;
 type SidebarSide = keyof typeof sidebarLimits;
-type FolderSurface = "nav" | "results";
-type FolderMenu = { surface: FolderSurface; id: string; x: number; y: number };
+type FolderSurface = MenuSurface;
+type ContextMenu = { surface: MenuSurface; id: string; x: number; y: number };
 function storedSidebarWidth(side: SidebarSide): number {
   try {
     const saved = Number(window.localStorage.getItem(`bookmarktivity-${side}-sidebar-width`));
@@ -211,7 +212,7 @@ export default function App() {
   const [settingsTab, setSettingsTab] = useState<"profiles" | "shortcuts">("profiles");
   const [syntaxOpen, setSyntaxOpen] = useState(false);
   const [refreshOpen, setRefreshOpen] = useState(false);
-  const [folderMenu, setFolderMenu] = useState<FolderMenu | null>(null);
+  const [contextMenu, setContextMenu] = useState<ContextMenu | null>(null);
   const [busy, setBusy] = useState(false);
   const [status, setStatus] = useState("Choose a browser profile in Settings to begin.");
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -227,7 +228,7 @@ export default function App() {
   const resizing = useRef<{ side: SidebarSide; startX: number; startWidth: number } | null>(null);
   const refineRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLDivElement>(null);
-  const folderMenuRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
   const navInitialized = useRef(false);
   const [resultScroll, setResultScroll] = useState(0);
   const [resultHeight, setResultHeight] = useState(560);
@@ -599,23 +600,38 @@ export default function App() {
     };
     (surface === "nav" ? setCollapsedNav : setCollapsedResults)(update);
     if (surface === "results") setSelectedId(id);
-    setFolderMenu(null);
+    setContextMenu(null);
     surface === "nav" ? focusFolder(id) : focusResult(id);
   };
-  const openFolderMenu = (surface: FolderSurface, id: string, event: React.MouseEvent<HTMLElement>) => {
-    event.preventDefault();
+  const menuItemFor = (menu: ContextMenu): Item | null =>
+    menu.surface === "nav" ? folderMap.get(menu.id) || null : visible.find(item => item.id === menu.id) || null;
+  const menuActions = contextMenu ? (() => {
+    const item = menuItemFor(contextMenu);
+    return item ? menuActionsFor(contextMenu.surface, item, { copy: labelFor(bindings.copy), expandAll: labelFor(bindings.expandAll), collapseAll: labelFor(bindings.collapseAll) }) : [];
+  })() : [];
+  const openContextMenu = (surface: MenuSurface, id: string, x: number, y: number) => {
     if (surface === "results") setSelectedId(id);
-    setFolderMenu({ surface, id, x: Math.max(8, Math.min(event.clientX, window.innerWidth - 205)), y: Math.max(8, Math.min(event.clientY, window.innerHeight - 100)) });
+    const width = 250, height = 4 * 32 + 24;
+    setContextMenu({ surface, id, x: Math.max(8, Math.min(x, window.innerWidth - width - 8)), y: Math.max(8, Math.min(y, window.innerHeight - height - 8)) });
+  };
+  const openContextMenuAt = (surface: MenuSurface, id: string, event: React.MouseEvent<HTMLElement>) => {
+    event.preventDefault();
+    openContextMenu(surface, id, event.clientX, event.clientY);
+  };
+  const closeContextMenu = (restoreFocus: boolean) => {
+    if (!contextMenu) return;
+    setContextMenu(null);
+    if (restoreFocus) contextMenu.surface === "nav" ? focusFolder(contextMenu.id) : focusResult(contextMenu.id);
   };
   useEffect(() => {
-    if (!folderMenu) return;
-    requestAnimationFrame(() => folderMenuRef.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus());
+    if (!contextMenu) return;
+    requestAnimationFrame(() => contextMenuRef.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus());
     const dismiss = (event: PointerEvent) => {
-      if (!folderMenuRef.current?.contains(event.target as Node)) setFolderMenu(null);
+      if (!contextMenuRef.current?.contains(event.target as Node)) setContextMenu(null);
     };
     document.addEventListener("pointerdown", dismiss);
     return () => document.removeEventListener("pointerdown", dismiss);
-  }, [folderMenu]);
+  }, [contextMenu]);
   const openItem = async (item: Item | null) => {
     if (!item) return;
     if (item.kind === "folder") {
@@ -628,9 +644,18 @@ export default function App() {
     catch (error) { notify(String(error)); }
   };
   const copyItem = async (item: Item | null) => {
-    if (!item || item.kind !== "bookmark") return;
-    try { await navigator.clipboard.writeText(item.url); notify("URL copied"); }
+    if (!item) return;
+    try { await navigator.clipboard.writeText(itemCopyText(item, folderMap)); notify(item.kind === "folder" ? "Path copied" : "URL copied"); }
     catch { notify("Clipboard unavailable"); }
+  };
+  const runMenuAction = (action: MenuActionId) => {
+    if (!contextMenu) return;
+    const item = menuItemFor(contextMenu);
+    if (!item) { setContextMenu(null); return; }
+    if (action === "expandAll" || action === "collapseAll") { changeFolderBranch(contextMenu.surface, item.id, action === "collapseAll"); return; }
+    closeContextMenu(true);
+    if (action === "open") void openItem(item);
+    else void copyItem(item);
   };
   const reset = () => {
     setOptions(defaultOptions);
@@ -675,7 +700,8 @@ export default function App() {
         const target = event.target as HTMLElement;
         const navId = target.closest<HTMLElement>("[data-folder-id]")?.dataset.folderId;
         const resultId = target.closest<HTMLElement>("[data-result-id]")?.dataset.resultId;
-        const branch = folderMenu || (navId ? { surface: "nav" as const, id: navId }
+        const menuFolder = contextMenu && (contextMenu.surface === "nav" || folderMap.has(contextMenu.id)) ? contextMenu : null;
+        const branch = menuFolder || (navId ? { surface: "nav" as const, id: navId }
           : resultId && folderMap.has(resultId) ? { surface: "results" as const, id: resultId }
           : selected?.kind === "folder" ? { surface: "results" as const, id: selected.id } : null);
         if (branch) {
@@ -686,7 +712,7 @@ export default function App() {
       }
       if (event.key === "Escape") {
         event.preventDefault();
-        if (folderMenu) { setFolderMenu(null); return; }
+        if (contextMenu) { closeContextMenu(true); return; }
         if (settingsOpen) { setSettingsOpen(false); return; }
         if (refreshOpen || syntaxOpen) { setRefreshOpen(false); setSyntaxOpen(false); return; }
         if (performance.now() - escapeAt.current < 700) { escapeAt.current = 0; reset(); }
@@ -708,7 +734,13 @@ export default function App() {
         const index = visible.findIndex(item => item.id === id);
         const item = visible[index];
         if (!item) return;
-        if (chord === bindings.copy && item.kind === "bookmark") { event.preventDefault(); void copyItem(item); return; }
+        if (chord === bindings.copy) { event.preventDefault(); void copyItem(item); return; }
+        if (event.key === "ContextMenu" || chord === "Shift+F10") {
+          event.preventDefault();
+          const rect = resultRow.getBoundingClientRect();
+          openContextMenu("results", id, rect.left + 24, rect.bottom);
+          return;
+        }
         if (event.key === "ArrowDown" || event.key === "ArrowUp" || event.key === "Home" || event.key === "End") {
           event.preventDefault();
           const next = event.key === "Home" ? 0 : event.key === "End" ? visible.length - 1 : Math.max(0, Math.min(visible.length - 1, index + (event.key === "ArrowDown" ? 1 : -1)));
@@ -757,7 +789,7 @@ export default function App() {
         <button type="button" className={`nav-row ${options.scopeId === folder.id ? "active" : ""}`}
           role="treeitem" aria-level={level} aria-expanded={children.length ? open : undefined}
           data-folder-id={folder.id} style={{ "--level": level - 1 } as React.CSSProperties}
-          onContextMenu={event => openFolderMenu("nav", folder.id, event)}
+          onContextMenu={event => openContextMenuAt("nav", folder.id, event)}
           onClick={event => {
             if ((event.target as HTMLElement).closest("[data-branch]") && children.length) {
               setNavCollapsed(folder.id, open);
@@ -871,7 +903,7 @@ export default function App() {
               return <button type="button" className={`row ${item.kind} ${selected?.id === item.id ? "selected" : ""}`} key={item.id}
                 role="treeitem" aria-level={item.level} aria-expanded={isFolder && childCount ? expanded : undefined} aria-selected={selected?.id === item.id}
                 data-result-id={item.id} style={rowStyle}
-                onContextMenu={isFolder ? event => openFolderMenu("results", item.id, event) : undefined}
+                onContextMenu={event => openContextMenuAt("results", item.id, event)}
                 onClick={event => { setSelectedId(item.id); if ((event.target as HTMLElement).closest("[data-result-branch]") && isFolder && childCount) setResultCollapsed(item.id, expanded); focusResult(item.id); }}
                 onDoubleClick={() => { setSelectedId(item.id); void openItem(item); }}>
                 <span className={`branch ${expanded ? "open" : ""} ${childCount ? "" : "leaf"}`} data-result-branch aria-hidden="true"><Icons.chevron /></span>
@@ -899,18 +931,22 @@ export default function App() {
         </dl>
       </> : <p className="detail-empty">Select a folder or bookmark to see its source and full path.</p>}<div className="read-only"><Icons.lock /><span>Read only. Bookmarktivity does not change browser bookmark files.</span></div></aside>}
       </div>
-      <footer className="footer"><span>Enabled profiles only · Read-only browser access</span><div className="shortcuts"><span><span className="key">{labelFor(bindings.results)}</span> Results</span><span><span className="key">← →</span> Folders</span><span><span className="key">Esc Esc</span> Reset</span><span><span className="key">{labelFor(bindings.copy)}</span> Copy URL</span></div></footer>
+      <footer className="footer"><span>Enabled profiles only · Read-only browser access</span><div className="shortcuts"><span><span className="key">{labelFor(bindings.results)}</span> Results</span><span><span className="key">← →</span> Folders</span><span><span className="key">Esc Esc</span> Reset</span><span><span className="key">{labelFor(bindings.copy)}</span> Copy</span></div></footer>
     </div>
-    {folderMenu && <div className="menu folder-context-menu" role="menu" aria-label={`Folder actions for ${folderMap.get(folderMenu.id)?.name || "selected folder"}`} ref={folderMenuRef} style={{ left: folderMenu.x, top: folderMenu.y }} onKeyDown={event => {
-      if (event.key !== "ArrowDown" && event.key !== "ArrowUp") return;
+    {contextMenu && menuActions.length > 0 && <div className="menu result-context-menu" role="menu" aria-label={`Actions for ${menuItemFor(contextMenu)?.name || "selected item"}`} ref={contextMenuRef} style={{ left: contextMenu.x, top: contextMenu.y }} onKeyDown={event => {
+      if (event.key === "Tab") { event.preventDefault(); return; }
+      if (event.key !== "ArrowDown" && event.key !== "ArrowUp" && event.key !== "Home" && event.key !== "End") return;
       event.preventDefault();
       event.stopPropagation();
       const buttons = [...event.currentTarget.querySelectorAll<HTMLButtonElement>("[role=menuitem]")];
       const index = buttons.indexOf(document.activeElement as HTMLButtonElement);
-      buttons[(index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length]?.focus();
+      const next = event.key === "Home" ? 0 : event.key === "End" ? buttons.length - 1 : (index + (event.key === "ArrowDown" ? 1 : buttons.length - 1)) % buttons.length;
+      buttons[next]?.focus();
     }}>
-      <button type="button" role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, false)}>Expand all <span className="key">{labelFor(bindings.expandAll)}</span></button>
-      <button type="button" role="menuitem" onClick={() => changeFolderBranch(folderMenu.surface, folderMenu.id, true)}>Collapse all <span className="key">{labelFor(bindings.collapseAll)}</span></button>
+      {menuActions.map(action => <div key={action.id} role="none">
+        {action.separatorBefore && <div className="menu-rule" role="separator" />}
+        <button type="button" role="menuitem" onClick={() => runMenuAction(action.id)}>{action.label}{action.shortcut && <span className="key">{action.shortcut}</span>}</button>
+      </div>)}
     </div>}
     {settingsOpen && <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="settings-title" onPointerDown={event => { if (event.target === event.currentTarget) setSettingsOpen(false); }}><div className="modal">
       <nav className="modal-nav"><h2 id="settings-title">Profiles & settings</h2>

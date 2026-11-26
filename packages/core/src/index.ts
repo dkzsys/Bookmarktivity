@@ -111,6 +111,13 @@ export function folderPath(folderId: string | null, folderMap: Map<string, Folde
   return path;
 }
 
+/** Text a copy action places on the clipboard: a bookmark's URL, or a folder's full path including itself. */
+export function itemCopyText(item: Item, folderMap: Map<string, Folder>): string {
+  if (item.kind === "bookmark") return item.url;
+  const path = folderPath(item.id, folderMap);
+  return path.length ? path.map(folder => folder.name).join(" / ") : item.name;
+}
+
 function fieldsFor(item: Item, folderMap: Map<string, Folder>): Record<Field, string> {
   return {
     name: item.name,

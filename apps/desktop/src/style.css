@@ -213,7 +213,7 @@ select{height:28px;padding:0 8px;border:1px solid var(--line-strong);border-radi
 .footer .shortcuts{display:flex;gap:14px}
 .footer .key{margin-right:3px;padding:0 4px;font-size:10.5px}
 
-.folder-context-menu{position:fixed;z-index:30;width:210px}
+.result-context-menu{position:fixed;z-index:30;width:250px}
 .toast{position:fixed;left:50%;bottom:44px;z-index:60;transform:translateX(-50%);max-width:min(560px,90vw);padding:8px 14px;border-radius:8px;background:#1c1c1f;color:#fff;font-size:12.5px;box-shadow:var(--shadow)}
 :root[data-theme="dark"] .toast{background:#f1f1f3;color:#1c1c1f}
 
