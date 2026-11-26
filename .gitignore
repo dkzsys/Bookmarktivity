@@ -32,3 +32,5 @@ Bookmarks.plist
 # Private local notes (own local-only repository) and local Claude instructions
 private/
 CLAUDE.local.md
+.claude/settings.local.json
+.claude/local/
